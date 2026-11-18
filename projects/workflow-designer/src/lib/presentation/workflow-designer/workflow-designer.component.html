@@ -1,7 +1,7 @@
 <section aria-label="Рабочая область схемы">
   <p class="hint">
-    Двигайте блоки за карточки. Для связи потяните от выхода справа на одном шаге ко входу слева на
-    другом.
+    Потяните от выхода одного шага ко входу другого, чтобы провести стрелку. Чтобы удалить стрелку,
+    нажмите на линию и выберите «Удалить связь» или нажмите Delete.
   </p>
   <div class="editor-toolbar">
     <form
@@ -22,12 +22,23 @@
       </label>
       <button type="submit">Добавить шаг</button>
     </form>
+    <button
+      type="button"
+      class="remove-connection"
+      [disabled]="selectedConnectionId() === null"
+      (click)="removeSelectedConnection(surface)"
+    >
+      Удалить связь
+    </button>
     <button type="button" (click)="save(canvas)">Сохранить</button>
     <span role="status">{{ messages[graph.status()] }}</span>
   </div>
   <f-flow
     #surface
+    aria-label="Схема процесса"
     fDraggable
+    (fSelectionChange)="onSelectionChange($event)"
+    (fDeleteSelected)="removeSelectedConnection(surface)"
     (fFullRendered)="openCanvas(canvas)"
     (fMoveNodes)="graph.moveNodes($event.nodes)"
     (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"

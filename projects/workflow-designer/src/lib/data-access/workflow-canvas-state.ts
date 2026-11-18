@@ -65,6 +65,14 @@ export class WorkflowCanvasState {
     this.saveStatus.set('modified');
   }
 
+  removeConnection(id: string): void {
+    const edges = this.connections();
+    const remaining = edges.filter((edge) => edge.id !== id);
+    if (remaining.length === edges.length) return;
+    this.connectionList.set(remaining);
+    this.saveStatus.set('modified');
+  }
+
   save(viewport: WorkflowViewport): void {
     const saved = saveWorkflow(this.nodes(), this.connections(), viewport);
     this.saveStatus.set(saved ? 'saved' : 'save-error');
