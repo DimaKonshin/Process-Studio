@@ -1,5 +1,6 @@
 import {
   canConnect,
+  createWorkflowNode,
   type WorkflowConnection,
   type WorkflowNode,
   type WorkflowPosition,
@@ -56,36 +57,50 @@ function isConnection(value: unknown): value is WorkflowConnection {
   );
 }
 
+function readNodes(
+  items: unknown[],
+  version: 1 | 2,
+  initialNodes: readonly WorkflowNode[],
+): WorkflowNode[] | undefined {
+  // Version 1 stored only the positions of the two predefined steps.
+  if (version === 1 && items.length !== initialNodes.length) return;
+  if (items.length === 0) return;
+
+  const nodes = new Map<string, WorkflowNode>();
+  for (const item of items) {
+    if (!isRecord(item)) return;
+    const { id, position } = item;
+    if (typeof id !== 'string' || !id.trim() || nodes.has(id) || !isPoint(position)) return;
+
+    const definition = version === 1 ? initialNodes.find((node) => node.id === id) : item;
+    if (!definition) return;
+    const { kind, title } = definition;
+    if ((kind !== 'start' && kind !== 'task') || typeof title !== 'string' || !title.trim()) return;
+    nodes.set(id, createWorkflowNode(id, kind, title, position));
+  }
+  return [...nodes.values()];
+}
+
 function decode(value: unknown, steps: readonly WorkflowNode[]): RestoredWorkflow | undefined {
-  if (!isRecord(value) || value['version'] !== 1) return;
-  const { nodes, connections, viewport } = value;
+  if (!isRecord(value)) return;
+  const { version, nodes, connections, viewport } = value;
   if (
+    (version !== 1 && version !== 2) ||
     !Array.isArray(nodes) ||
-    nodes.length !== steps.length ||
     !Array.isArray(connections) ||
     !isViewport(viewport)
-  ) {
+  )
     return;
-  }
 
-  const positions = new Map<string, WorkflowPosition>();
-  for (const item of nodes) {
-    if (!isRecord(item) || typeof item['id'] !== 'string' || !isPoint(item['position'])) return;
-    positions.set(item['id'], item['position']);
-  }
-  const restoredNodes: WorkflowNode[] = [];
-  for (const step of steps) {
-    const position = positions.get(step.id);
-    if (!position) return;
-    restoredNodes.push({ ...step, position });
-  }
+  const restoredNodes = readNodes(nodes, version, steps);
+  if (!restoredNodes) return;
 
   const edges: WorkflowConnection[] = [];
   for (const item of connections) {
     if (
       !isConnection(item) ||
       edges.some((edge) => edge.id === item.id) ||
-      !canConnect(steps, edges, item.sourceId, item.targetId)
+      !canConnect(restoredNodes, edges, item.sourceId, item.targetId)
     ) {
       return;
     }
@@ -117,8 +132,8 @@ export function saveWorkflow(
   viewport: WorkflowViewport,
 ): boolean {
   const snapshot = {
-    version: 1,
-    nodes: nodes.map(({ id, position }) => ({ id, position })),
+    version: 2,
+    nodes: nodes.map(({ id, kind, title, position }) => ({ id, kind, title, position })),
     connections,
     viewport,
   };

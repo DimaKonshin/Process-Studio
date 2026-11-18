@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 
 import {
   canConnect,
+  createWorkflowNode,
   type WorkflowConnection,
   type WorkflowNode,
   type WorkflowPosition,
@@ -12,20 +13,8 @@ import { loadWorkflow, saveWorkflow, type WorkflowViewport } from './workflow-st
 type SaveStatus = ReturnType<typeof loadWorkflow>['status'] | 'modified' | 'saved' | 'save-error';
 
 const initialNodes: readonly WorkflowNode[] = [
-  {
-    id: 'request-created',
-    kind: 'start',
-    title: 'Заявка создана',
-    position: { x: 0, y: 0 },
-    outputId: 'request-created:out',
-  },
-  {
-    id: 'review-request',
-    kind: 'task',
-    title: 'Проверить заявку',
-    position: { x: 350, y: 76 },
-    inputId: 'review-request:in',
-  },
+  createWorkflowNode('request-created', 'start', 'Заявка создана', { x: 0, y: 0 }),
+  createWorkflowNode('review-request', 'task', 'Проверить заявку', { x: 350, y: 76 }),
 ];
 
 @Injectable()
@@ -42,6 +31,14 @@ export class WorkflowCanvasState {
   readonly status = this.saveStatus.asReadonly();
   readonly nodes = this.nodeList.asReadonly();
   readonly connections = this.connectionList.asReadonly();
+
+  addTask(title: string, position: WorkflowPosition): void {
+    const name = title.trim();
+    if (!name) return;
+    const node = createWorkflowNode(crypto.randomUUID(), 'task', name, position);
+    this.nodeList.update((nodes) => [...nodes, node]);
+    this.saveStatus.set('modified');
+  }
 
   moveNodes(moves: readonly { id: string; position: WorkflowPosition }[]): void {
     const nodes = this.nodes();
