@@ -3,13 +3,22 @@
     Двигайте блоки за карточки. Чтобы провести стрелку, потяните от правой точки блока «Заявка
     создана» к левой точке блока «Проверить заявку».
   </p>
+  <div class="save-bar">
+    <button type="button" (click)="save(canvas)">Сохранить</button>
+    <span role="status">{{ messages[graph.status()] }}</span>
+  </div>
   <f-flow
+    #surface
     fDraggable
-    (fFullRendered)="canvas.fitToScreen({ x: 32, y: 32 }, false, false, 1)"
+    (fFullRendered)="openCanvas(canvas)"
     (fMoveNodes)="graph.moveNodes($event.nodes)"
     (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"
   >
-    <f-canvas #canvas>
+    <f-canvas
+      #canvas
+      [position]="graph.initialViewport?.position"
+      [scale]="graph.initialViewport?.scale ?? 1"
+    >
       <f-connection-for-create fType="bezier" />
       @for (edge of graph.connections(); track edge.id) {
         <f-connection
