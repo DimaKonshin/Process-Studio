@@ -65,7 +65,6 @@ function readNodes(
 ): WorkflowNode[] | undefined {
   // Version 1 stored only the positions of the two predefined steps.
   if (version === 1 && items.length !== initialNodes.length) return;
-  if (items.length === 0) return;
 
   const nodes = new Map<string, WorkflowNode>();
   for (const item of items) {

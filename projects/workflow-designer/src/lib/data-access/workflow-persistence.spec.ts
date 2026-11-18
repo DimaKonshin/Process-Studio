@@ -33,6 +33,62 @@ describe('saving a workflow', () => {
     expect(restored.initialViewport).toEqual(view);
   });
 
+  it('renames a step and persists the remaining approval branch after one finish is removed', () => {
+    const graph = savedGraph();
+    const approval = graph.addStep('approval', 'Решение', position)!;
+    const yes = graph.addStep('finish', 'Оплачено', position)!;
+    const no = graph.addStep('finish', 'Отклонено', position)!;
+    graph.connect('review-request:out', `${approval}:in`);
+    graph.connect(`${approval}:approved`, `${yes}:in`);
+    graph.connect(`${approval}:rejected`, `${no}:in`);
+    const review = graph.nodes().find((step) => step.id === 'review-request')!;
+    const originalEdges = graph.connections();
+    graph.save(view);
+    graph.renameStep(review.id, '  Проверить бюджет  ');
+    expect(graph.nodes().find((step) => step.id === review.id)).toEqual({
+      ...review,
+      title: 'Проверить бюджет',
+    });
+    expect(graph.connections()).toBe(originalEdges);
+    expect(graph.status()).toBe('modified');
+    graph.removeStep(no);
+    expect(graph.connections()).toEqual(originalEdges.slice(0, 3));
+    expect(new WorkflowCanvasState().nodes()).toHaveLength(5);
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.nodes()).toEqual(graph.nodes());
+    expect(restored.nodes().some((step) => step.id === no)).toBe(false);
+    expect(restored.connections()).toEqual(originalEdges.slice(0, 3));
+
+    restored.removeStep(approval);
+    expect(restored.connections()).toEqual([originalEdges[0]]);
+    expect(restored.nodes().some((step) => step.id === yes)).toBe(true);
+  });
+
+  it('ignores blank names, unchanged names and stale step IDs', () => {
+    const graph = savedGraph();
+    const nodes = graph.nodes();
+    graph.renameStep(nodes[0].id, '  ');
+    graph.renameStep(nodes[0].id, nodes[0].title);
+    graph.renameStep('missing', 'Название');
+    graph.removeStep('missing');
+    expect(graph.nodes()).toBe(nodes);
+    expect(graph.status()).toBe('saved');
+  });
+
+  it('restores a deliberately empty canvas and can add a new start', () => {
+    const graph = savedGraph();
+    for (const node of graph.nodes()) graph.removeStep(node.id);
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.status()).toBe('restored');
+    expect(restored.nodes()).toEqual([]);
+    expect(restored.connections()).toEqual([]);
+    expect(restored.availableStepKinds()).toContain('start');
+    expect(restored.addStep('start', 'Новая заявка', position)).toBeTruthy();
+    expect(restored.availableStepKinds()).not.toContain('start');
+  });
+
   it('deletes one saved branch and can reconnect its ports', () => {
     const graph = new WorkflowCanvasState();
     const gate = graph.addStep('approval', 'Решение', position);

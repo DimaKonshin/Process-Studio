@@ -1,9 +1,10 @@
-import { Injectable, signal } from '@angular/core';
+import { computed, Injectable, signal } from '@angular/core';
 
 import {
   canConnect,
   createWorkflowNode,
-  type AddableStepKind,
+  addableStepKinds,
+  type WorkflowStepKind,
   type WorkflowConnection,
   type WorkflowNode,
   type WorkflowPosition,
@@ -33,13 +34,40 @@ export class WorkflowCanvasState {
   readonly nodes = this.nodeList.asReadonly();
   readonly connections = this.connectionList.asReadonly();
 
-  addStep(kind: AddableStepKind, title: string, position: WorkflowPosition): string | undefined {
+  readonly availableStepKinds = computed<readonly WorkflowStepKind[]>(() =>
+    this.nodes().some((node) => node.kind === 'start')
+      ? addableStepKinds
+      : [...addableStepKinds, 'start'],
+  );
+
+  addStep(kind: WorkflowStepKind, title: string, position: WorkflowPosition): string | undefined {
     const name = title.trim();
-    if (!name) return;
+    if (!name || !this.availableStepKinds().includes(kind)) return;
     const node = createWorkflowNode(crypto.randomUUID(), kind, name, position);
     this.nodeList.update((nodes) => [...nodes, node]);
     this.saveStatus.set('modified');
     return node.id;
+  }
+
+  renameStep(id: string, title: string): void {
+    const name = title.trim();
+    const nodes = this.nodes();
+    const current = nodes.find((node) => node.id === id);
+    if (!current || !name || current.title === name) return;
+    this.nodeList.set(nodes.map((node) => (node.id === id ? { ...node, title: name } : node)));
+    this.saveStatus.set('modified');
+  }
+
+  removeStep(id: string): void {
+    const nodes = this.nodes();
+    const step = nodes.find((node) => node.id === id);
+    if (!step) return;
+    const outputs = new Set(step.outputs.map((port) => port.id));
+    this.connectionList.update((edges) =>
+      edges.filter((edge) => edge.targetId !== step.inputId && !outputs.has(edge.sourceId)),
+    );
+    this.nodeList.set(nodes.filter((node) => node.id !== id));
+    this.saveStatus.set('modified');
   }
 
   moveNodes(moves: readonly { id: string; position: WorkflowPosition }[]): void {

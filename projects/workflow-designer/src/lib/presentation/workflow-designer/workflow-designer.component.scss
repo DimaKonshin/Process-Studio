@@ -166,3 +166,23 @@ f-flow {
 f-connection.f-selected {
   --ff-connection-width: 4px;
 }
+
+.editor-workspace {
+  position: relative;
+}
+
+wf-step-properties {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
+  width: 16rem;
+}
+
+@media (max-width: 48rem) {
+  wf-step-properties {
+    position: static;
+    width: auto;
+    margin-top: 0.75rem;
+  }
+}

@@ -2,6 +2,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   ElementRef,
   inject,
   Injector,
@@ -19,15 +20,13 @@ import {
 
 import { WorkflowCanvasState } from '../../data-access/workflow-canvas-state';
 
-import {
-  addableStepKinds,
-  type ApprovalOutcome,
-  type WorkflowStepKind,
-} from '../../domain/workflow-graph';
+import { type ApprovalOutcome, type WorkflowStepKind } from '../../domain/workflow-graph';
+
+import { StepPropertiesComponent } from '../step-properties/step-properties.component';
 
 @Component({
   selector: 'wf-workflow-designer',
-  imports: [FFlowModule],
+  imports: [FFlowModule, StepPropertiesComponent],
   providers: [WorkflowCanvasState, provideFFlow(withA11y())],
   templateUrl: './workflow-designer.component.html',
   styleUrl: './workflow-designer.component.scss',
@@ -39,7 +38,6 @@ export class WorkflowDesignerComponent {
     { read: ElementRef },
   );
   private readonly injector = inject(Injector);
-  protected readonly kinds = addableStepKinds;
   protected readonly kindLabels: Record<WorkflowStepKind, string> = {
     start: 'Старт',
     task: 'Задача',
@@ -60,9 +58,15 @@ export class WorkflowDesignerComponent {
     'save-error': 'Не удалось сохранить схему в этом браузере. Можно попробовать ещё раз.',
   };
   protected readonly graph = inject(WorkflowCanvasState);
+  private readonly selectedNodeId = signal<string | null>(null);
+  protected readonly selectedStep = computed(() =>
+    this.graph.nodes().find((node) => node.id === this.selectedNodeId()),
+  );
   protected readonly selectedConnectionId = signal<string | null>(null);
 
   protected onSelectionChange({ nodeIds, groupIds, connectionIds }: FSelectionChangeEvent): void {
+    const singleNode = nodeIds.length === 1 && !groupIds.length && !connectionIds.length;
+    this.selectedNodeId.set(singleNode ? nodeIds[0] : null);
     const singleEdge = connectionIds.length === 1 && !nodeIds.length && !groupIds.length;
     this.selectedConnectionId.set(singleEdge ? connectionIds[0] : null);
   }
@@ -75,16 +79,32 @@ export class WorkflowDesignerComponent {
     this.graph.removeConnection(id);
   }
 
+  protected dismissProperties(flow: FFlowComponent): void {
+    flow.clearSelection();
+    this.selectedNodeId.set(null);
+    this.surface().nativeElement.focus({ preventScroll: true });
+  }
+
+  protected removeSelectedStep(flow: FFlowComponent): void {
+    const step = this.selectedStep();
+    if (!step) return;
+    this.dismissProperties(flow);
+    this.graph.removeStep(step.id);
+  }
+
   protected openCanvas(canvas: FCanvasComponent): void {
     const { clientWidth, clientHeight } = this.surface().nativeElement;
     const view = this.graph.initialViewport;
-    if (!view || view.width !== clientWidth || view.height !== clientHeight) {
+    if (
+      this.graph.nodes().length &&
+      (!view || view.width !== clientWidth || view.height !== clientHeight)
+    ) {
       canvas.fitToScreen({ x: 32, y: 32 }, false, false, 1);
     }
   }
 
   protected addStep(value: string, input: HTMLInputElement, flow: FFlowComponent): void {
-    const kind = this.kinds.find((item) => item === value);
+    const kind = this.graph.availableStepKinds().find((item) => item === value);
     if (!kind) return;
     const bounds = this.surface().nativeElement.getBoundingClientRect();
     const id = this.graph.addStep(
