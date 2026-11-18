@@ -3,6 +3,7 @@ import { Injectable, signal } from '@angular/core';
 import {
   canConnect,
   createWorkflowNode,
+  type AddableStepKind,
   type WorkflowConnection,
   type WorkflowNode,
   type WorkflowPosition,
@@ -32,12 +33,13 @@ export class WorkflowCanvasState {
   readonly nodes = this.nodeList.asReadonly();
   readonly connections = this.connectionList.asReadonly();
 
-  addTask(title: string, position: WorkflowPosition): void {
+  addStep(kind: AddableStepKind, title: string, position: WorkflowPosition): string | undefined {
     const name = title.trim();
     if (!name) return;
-    const node = createWorkflowNode(crypto.randomUUID(), 'task', name, position);
+    const node = createWorkflowNode(crypto.randomUUID(), kind, name, position);
     this.nodeList.update((nodes) => [...nodes, node]);
     this.saveStatus.set('modified');
+    return node.id;
   }
 
   moveNodes(moves: readonly { id: string; position: WorkflowPosition }[]): void {

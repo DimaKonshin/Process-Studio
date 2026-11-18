@@ -47,9 +47,12 @@
     display: grid;
     gap: 0.25rem;
   }
-  input {
+  input,
+  select {
     box-sizing: border-box;
-    width: min(15rem, 100%);
+    max-width: 100%;
+    background: white;
+    color: inherit;
     border: 1px solid #879ab0;
     border-radius: 0.5rem;
     padding: 0.45rem 0.65rem;
@@ -98,7 +101,13 @@ f-flow {
   font-size: 0.8125rem;
   font-weight: 600;
 
-  &.start {
+  &[data-kind='approval'] {
+    color: #795416;
+  }
+  &[data-kind='finish'] {
+    color: #694782;
+  }
+  &[data-kind='start'] {
     color: #11705d;
   }
 }
@@ -110,4 +119,28 @@ f-flow {
 
 .port {
   cursor: crosshair;
+}
+
+.output {
+  display: contents;
+}
+
+.output.outcome {
+  display: block;
+  position: relative;
+  margin-inline-end: -1.25rem;
+  padding: 0.2rem 1.25rem 0.2rem 0;
+  line-height: 1.35;
+  text-align: right;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #176447;
+  --ff-connector-border-color: #287a58;
+  --ff-connector-connected-color: #287a58;
+
+  &[data-outcome='rejected'] {
+    color: #984239;
+    --ff-connector-border-color: #aa5147;
+    --ff-connector-connected-color: #aa5147;
+  }
 }

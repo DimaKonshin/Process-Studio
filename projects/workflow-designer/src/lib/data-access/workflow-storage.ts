@@ -1,6 +1,7 @@
 import {
   canConnect,
   createWorkflowNode,
+  isWorkflowStepKind,
   type WorkflowConnection,
   type WorkflowNode,
   type WorkflowPosition,
@@ -75,7 +76,7 @@ function readNodes(
     const definition = version === 1 ? initialNodes.find((node) => node.id === id) : item;
     if (!definition) return;
     const { kind, title } = definition;
-    if ((kind !== 'start' && kind !== 'task') || typeof title !== 'string' || !title.trim()) return;
+    if (!isWorkflowStepKind(kind) || typeof title !== 'string' || !title.trim()) return;
     nodes.set(id, createWorkflowNode(id, kind, title, position));
   }
   return [...nodes.values()];

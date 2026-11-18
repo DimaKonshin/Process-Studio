@@ -10,7 +10,7 @@ describe('WorkflowDesignerComponent', () => {
     const graph = first.debugElement.injector.get(WorkflowCanvasState);
     const [start, task] = graph.nodes();
 
-    graph.connect(start.outputId!, task.inputId);
+    graph.connect(start.outputs[0].id, task.inputId);
     expect(graph.connections()).toHaveLength(1);
     expect(second.debugElement.injector.get(WorkflowCanvasState).connections()).toEqual([]);
   });

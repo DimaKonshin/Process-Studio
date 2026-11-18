@@ -56,7 +56,7 @@ describe('saving a workflow', () => {
     expect(graph.status()).toBe('restored');
     expect(graph.nodes()[0].position).toEqual(position);
     expect(graph.connections()).toEqual([edge]);
-    graph.addTask('Уведомить автора', { x: 600, y: 40 });
+    graph.addStep('task', 'Уведомить автора', { x: 600, y: 40 });
     const task = graph.nodes()[2];
     graph.connect('review-request:out', task.inputId);
     graph.save(view);
@@ -66,6 +66,22 @@ describe('saving a workflow', () => {
     expect(restored.connections()).toEqual(graph.connections());
     expect(restored.connections()).toHaveLength(2);
     expect(restored.nodes()[2].title).toBe('Уведомить автора');
+  });
+
+  it('restores both approval outcomes and the exact finish each leads to', () => {
+    const graph = new WorkflowCanvasState();
+    const approval = graph.addStep('approval', 'Решение руководителя', position);
+    const yes = graph.addStep('finish', 'На оплату', { x: 500, y: 0 });
+    const no = graph.addStep('finish', 'Отказано', { x: 500, y: 120 });
+    graph.connect('review-request:out', `${approval}:in`);
+    graph.connect(`${approval}:approved`, `${yes}:in`);
+    graph.connect(`${approval}:rejected`, `${no}:in`);
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.status()).toBe('restored');
+    expect(restored.nodes()).toEqual(graph.nodes());
+    expect(restored.connections()).toEqual(graph.connections());
+    expect(restored.connections()).toHaveLength(3);
   });
 
   it.each([

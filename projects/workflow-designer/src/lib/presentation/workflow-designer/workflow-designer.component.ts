@@ -1,7 +1,21 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  Injector,
+  viewChild,
+} from '@angular/core';
 import { FCanvasComponent, FFlowComponent, FFlowModule } from '@foblex/flow';
 
 import { WorkflowCanvasState } from '../../data-access/workflow-canvas-state';
+
+import {
+  addableStepKinds,
+  type ApprovalOutcome,
+  type WorkflowStepKind,
+} from '../../domain/workflow-graph';
 
 @Component({
   selector: 'wf-workflow-designer',
@@ -16,6 +30,18 @@ export class WorkflowDesignerComponent {
     'surface',
     { read: ElementRef },
   );
+  private readonly injector = inject(Injector);
+  protected readonly kinds = addableStepKinds;
+  protected readonly kindLabels: Record<WorkflowStepKind, string> = {
+    start: 'Старт',
+    task: 'Задача',
+    approval: 'Согласование',
+    finish: 'Финиш',
+  };
+  protected readonly outcomeLabels: Record<ApprovalOutcome, string> = {
+    approved: 'Согласовано',
+    rejected: 'Отклонено',
+  };
   protected readonly messages = {
     empty: '',
     restored: 'Сохранённая схема загружена.',
@@ -35,22 +61,44 @@ export class WorkflowDesignerComponent {
     }
   }
 
-  protected addStep(input: HTMLInputElement, flow: FFlowComponent): void {
-    const point = this.nextStepPosition();
-    this.graph.addTask(input.value, flow.getPositionInFlow(point));
+  protected addStep(value: string, input: HTMLInputElement, flow: FFlowComponent): void {
+    const kind = this.kinds.find((item) => item === value);
+    if (!kind) return;
+    const bounds = this.surface().nativeElement.getBoundingClientRect();
+    const id = this.graph.addStep(
+      kind,
+      input.value,
+      flow.getPositionInFlow({ x: bounds.left + 16, y: bounds.top + 16 }),
+    );
+    if (!id) return;
+
+    // Outcome rows and wrapped titles change the card height. Place it using its rendered size.
+    afterNextRender(
+      () => {
+        const surface = this.surface().nativeElement;
+        const cards = Array.from(surface.querySelectorAll<HTMLElement>('.step'));
+        const added = cards.find((card) => card.dataset['stepId'] === id);
+        if (!added) return;
+        const others = cards
+          .filter((card) => card !== added)
+          .map((card) => card.getBoundingClientRect());
+        const point = this.nextStepPosition(
+          surface.getBoundingClientRect(),
+          added.getBoundingClientRect(),
+          others,
+        );
+        this.graph.moveNodes([{ id, position: flow.getPositionInFlow(point) }]);
+      },
+      { injector: this.injector },
+    );
+
     input.value = '';
     input.focus();
   }
 
-  private nextStepPosition() {
-    const surface = this.surface().nativeElement;
-    const bounds = surface.getBoundingClientRect();
-    const cards = Array.from(surface.querySelectorAll<HTMLElement>('.step'), (card) =>
-      card.getBoundingClientRect(),
-    );
+  private nextStepPosition(bounds: DOMRect, added: DOMRect, cards: readonly DOMRect[]) {
     const gap = 16;
-    if (!cards.length) return { x: bounds.left + gap, y: bounds.top + gap };
-    const { width, height } = cards[0];
+    const { width, height } = added;
     const lastX = Math.max(gap, bounds.width - width - gap);
     const lastY = Math.max(gap, bounds.height - height - gap);
 

@@ -4,7 +4,18 @@
     другом.
   </p>
   <div class="editor-toolbar">
-    <form class="add-step" (submit)="$event.preventDefault(); addStep(stepName, surface)">
+    <form
+      class="add-step"
+      (submit)="$event.preventDefault(); addStep(stepKind.value, stepName, surface)"
+    >
+      <label>
+        Тип шага
+        <select #stepKind>
+          @for (kind of kinds; track kind) {
+            <option [value]="kind">{{ kindLabels[kind] }}</option>
+          }
+        </select>
+      </label>
       <label>
         Название шага
         <input #stepName type="text" required pattern=".*\S.*" autocomplete="off" />
@@ -39,10 +50,15 @@
         </f-connection>
       }
       @for (node of graph.nodes(); track node.id) {
-        <div class="step" fNode fDragHandle [fNodeId]="node.id" [fNodePosition]="node.position">
-          <span class="step-kind" [class.start]="node.kind === 'start'">{{
-            node.kind === 'start' ? 'Старт' : 'Задача'
-          }}</span>
+        <div
+          class="step"
+          [attr.data-step-id]="node.id"
+          fNode
+          fDragHandle
+          [fNodeId]="node.id"
+          [fNodePosition]="node.position"
+        >
+          <span class="step-kind" [attr.data-kind]="node.kind">{{ kindLabels[node.kind] }}</span>
           <strong>{{ node.title }}</strong>
           @if (node.inputId; as inputId) {
             <span
@@ -54,15 +70,20 @@
               title="Вход"
             ></span>
           }
-          @if (node.outputId; as outputId) {
-            <span
-              class="port right"
-              fConnector
-              fConnectorType="source"
-              [fConnectorId]="outputId"
-              fConnectorConnectableSide="right"
-              title="Выход"
-            ></span>
+          @for (port of node.outputs; track port.id) {
+            <div class="output" [class.outcome]="port.outcome" [attr.data-outcome]="port.outcome">
+              @if (port.outcome; as outcome) {
+                <span class="outcome-label">{{ outcomeLabels[outcome] }}</span>
+              }
+              <span
+                class="port right"
+                fConnector
+                fConnectorType="source"
+                [fConnectorId]="port.id"
+                fConnectorConnectableSide="right"
+                [title]="port.outcome ? outcomeLabels[port.outcome] : 'Выход'"
+              ></span>
+            </div>
           }
         </div>
       }
