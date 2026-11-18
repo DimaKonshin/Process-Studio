@@ -33,6 +33,37 @@ describe('saving a workflow', () => {
     expect(restored.initialViewport).toEqual(view);
   });
 
+  it('deletes one saved branch and can reconnect its ports', () => {
+    const graph = new WorkflowCanvasState();
+    const gate = graph.addStep('approval', 'Решение', position);
+    const finish = graph.addStep('finish', 'Отказано', position);
+    graph.connect(`${gate}:approved`, 'review-request:in');
+    graph.connect(`${gate}:rejected`, `${finish}:in`);
+    const [keep, remove] = graph.connections();
+    const nodes = graph.nodes();
+    graph.save(view);
+
+    graph.removeConnection(remove.id);
+    expect(graph.status()).toBe('modified');
+    expect(graph.nodes()).toBe(nodes);
+    expect(graph.connections()).toEqual([keep]);
+    expect(new WorkflowCanvasState().connections()).toEqual([keep, remove]);
+
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.connections()).toEqual([keep]);
+    restored.connect(remove.sourceId, remove.targetId);
+    expect(restored.connections()).toHaveLength(2);
+  });
+
+  it('ignores a stale connection ID without marking a saved graph as modified', () => {
+    const graph = savedGraph();
+    const edges = graph.connections();
+    graph.removeConnection('unknown-edge');
+    expect(graph.connections()).toBe(edges);
+    expect(graph.status()).toBe('saved');
+  });
+
   it('loads a version 1 save, appends a task and restores the complete chain from version 2', () => {
     const edge = {
       id: 'original-edge',

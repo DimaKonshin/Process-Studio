@@ -74,6 +74,8 @@ f-flow {
   --ff-connector-connected-color: #356797;
   --ff-connection-color: #356797;
   --ff-connection-width: 2.5px;
+  --ff-connection-hit-width: 20px;
+  --ff-connection-selected-color: #703aae;
   --ff-flow-font-family: inherit;
 
   display: block;
@@ -143,4 +145,24 @@ f-flow {
     --ff-connector-border-color: #aa5147;
     --ff-connector-connected-color: #aa5147;
   }
+}
+
+.editor-toolbar .remove-connection {
+  border: 1px solid currentColor;
+  background: white;
+  color: #943b2e;
+
+  &:hover:enabled {
+    background: #fff1ed;
+  }
+  &:disabled {
+    background: #f3f5f7;
+    border-color: #c7d0db;
+    color: #667384;
+    cursor: default;
+  }
+}
+
+f-connection.f-selected {
+  --ff-connection-width: 4px;
 }

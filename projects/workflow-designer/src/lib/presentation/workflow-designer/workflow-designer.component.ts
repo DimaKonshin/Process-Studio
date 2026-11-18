@@ -5,9 +5,17 @@ import {
   ElementRef,
   inject,
   Injector,
+  signal,
   viewChild,
 } from '@angular/core';
-import { FCanvasComponent, FFlowComponent, FFlowModule } from '@foblex/flow';
+import {
+  FCanvasComponent,
+  FFlowComponent,
+  FFlowModule,
+  type FSelectionChangeEvent,
+  provideFFlow,
+  withA11y,
+} from '@foblex/flow';
 
 import { WorkflowCanvasState } from '../../data-access/workflow-canvas-state';
 
@@ -20,7 +28,7 @@ import {
 @Component({
   selector: 'wf-workflow-designer',
   imports: [FFlowModule],
-  providers: [WorkflowCanvasState],
+  providers: [WorkflowCanvasState, provideFFlow(withA11y())],
   templateUrl: './workflow-designer.component.html',
   styleUrl: './workflow-designer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,6 +60,20 @@ export class WorkflowDesignerComponent {
     'save-error': 'Не удалось сохранить схему в этом браузере. Можно попробовать ещё раз.',
   };
   protected readonly graph = inject(WorkflowCanvasState);
+  protected readonly selectedConnectionId = signal<string | null>(null);
+
+  protected onSelectionChange({ nodeIds, groupIds, connectionIds }: FSelectionChangeEvent): void {
+    const singleEdge = connectionIds.length === 1 && !nodeIds.length && !groupIds.length;
+    this.selectedConnectionId.set(singleEdge ? connectionIds[0] : null);
+  }
+
+  protected removeSelectedConnection(flow: FFlowComponent): void {
+    const id = this.selectedConnectionId();
+    if (id === null) return;
+    flow.clearSelection();
+    this.selectedConnectionId.set(null);
+    this.graph.removeConnection(id);
+  }
 
   protected openCanvas(canvas: FCanvasComponent): void {
     const { clientWidth, clientHeight } = this.surface().nativeElement;
