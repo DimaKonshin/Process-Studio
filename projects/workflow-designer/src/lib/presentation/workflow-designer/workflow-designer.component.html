@@ -1,4 +1,10 @@
-<section aria-label="Рабочая область схемы">
+<section
+  class="designer"
+  aria-label="Рабочая область схемы"
+  [class.with-properties]="selectedStep()"
+  [class.expanded]="expanded()"
+>
+  <ng-content />
   <p class="hint">
     Нажмите на шаг, чтобы открыть его свойства. Потяните от выхода одного шага ко входу другого,
     чтобы провести стрелку. Чтобы удалить стрелку, нажмите на линию и выберите «Удалить связь» или
@@ -47,6 +53,10 @@
     >
       <f-canvas
         #canvas
+        fZoom
+        [fZoomMinimum]="limits.min"
+        [fZoomMaximum]="limits.max"
+        (fCanvasChange)="scale.set($event.scale)"
         [position]="graph.initialViewport?.position"
         [scale]="graph.initialViewport?.scale ?? 1"
       >
@@ -102,14 +112,21 @@
         }
       </f-canvas>
     </f-flow>
-    @if (selectedStep(); as step) {
-      <wf-step-properties
-        [step]="step"
-        [kindLabel]="kindLabels[step.kind]"
-        (rename)="graph.renameStep($event.id, $event.title)"
-        (remove)="removeSelectedStep(surface)"
-        (dismiss)="dismissProperties(surface)"
-      />
-    }
+    <wf-canvas-controls
+      [scale]="scale()"
+      [expanded]="expanded()"
+      (zoomIn)="zoom().zoomIn()"
+      (zoomOut)="zoom().zoomOut()"
+      (toggleExpanded)="expanded.set(!expanded())"
+    />
   </div>
+  @if (selectedStep(); as step) {
+    <wf-step-properties
+      [step]="step"
+      [kindLabel]="kindLabels[step.kind]"
+      (rename)="graph.renameStep($event.id, $event.title)"
+      (remove)="removeSelectedStep(surface)"
+      (dismiss)="dismissProperties(surface)"
+    />
+  }
 </section>

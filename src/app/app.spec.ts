@@ -9,7 +9,7 @@ describe('Workflow editor routing', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [AppModule] }).overrideComponent(
       WorkflowDesignerComponent,
-      { set: { template: '', imports: [] } },
+      { set: { template: '<ng-content />', imports: [] } },
     );
   });
 

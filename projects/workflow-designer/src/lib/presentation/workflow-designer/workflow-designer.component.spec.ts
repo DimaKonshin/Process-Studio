@@ -5,6 +5,9 @@ import { WorkflowDesignerComponent } from './workflow-designer.component';
 
 describe('WorkflowDesignerComponent', () => {
   it('starts each editor with its own unconnected graph', () => {
+    TestBed.overrideComponent(WorkflowDesignerComponent, {
+      set: { template: '', imports: [] },
+    });
     const first = TestBed.createComponent(WorkflowDesignerComponent);
     const second = TestBed.createComponent(WorkflowDesignerComponent);
     const graph = first.debugElement.injector.get(WorkflowCanvasState);

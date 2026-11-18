@@ -1,14 +1,35 @@
 :host {
-  display: block;
+  position: fixed;
+  z-index: 20;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: var(--drawer-width);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border-inline-start: 1px solid #c5d0df;
+  box-sizing: border-box;
+  box-shadow: -4px 0 20px #20354b12;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :host {
+    animation: slide-in 180ms ease-out;
+  }
+  @keyframes slide-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
 }
 aside {
   box-sizing: border-box;
-  padding: 1rem;
+  padding: 1.25rem;
   background: #fff;
   color: #20354b;
-  border: 1px solid #b8c7d8;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 16px #223d591a;
 }
 header,
 p {
@@ -18,7 +39,7 @@ p {
   gap: 0.5rem;
 }
 h2 {
-  font-size: 1rem;
+  font-size: 1.15rem;
   margin: 0;
 }
 p,

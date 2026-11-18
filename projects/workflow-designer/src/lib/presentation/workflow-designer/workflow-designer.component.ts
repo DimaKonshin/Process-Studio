@@ -13,6 +13,7 @@ import {
   FCanvasComponent,
   FFlowComponent,
   FFlowModule,
+  FZoomDirective,
   type FSelectionChangeEvent,
   provideFFlow,
   withA11y,
@@ -22,11 +23,13 @@ import { WorkflowCanvasState } from '../../data-access/workflow-canvas-state';
 
 import { type ApprovalOutcome, type WorkflowStepKind } from '../../domain/workflow-graph';
 
+import { CanvasControlsComponent, zoomLimits } from '../canvas-controls/canvas-controls.component';
 import { StepPropertiesComponent } from '../step-properties/step-properties.component';
 
 @Component({
   selector: 'wf-workflow-designer',
-  imports: [FFlowModule, StepPropertiesComponent],
+  imports: [FFlowModule, StepPropertiesComponent, CanvasControlsComponent],
+  host: { '(document:keydown.escape)': 'expanded.set(false)' },
   providers: [WorkflowCanvasState, provideFFlow(withA11y())],
   templateUrl: './workflow-designer.component.html',
   styleUrl: './workflow-designer.component.scss',
@@ -38,6 +41,11 @@ export class WorkflowDesignerComponent {
     { read: ElementRef },
   );
   private readonly injector = inject(Injector);
+  protected readonly zoom = viewChild.required(FZoomDirective);
+  protected readonly limits = zoomLimits;
+  protected readonly expanded = signal(false);
+  protected readonly scale = signal(1);
+  private viewportInitialized = false;
   protected readonly kindLabels: Record<WorkflowStepKind, string> = {
     start: 'Старт',
     task: 'Задача',
@@ -93,14 +101,19 @@ export class WorkflowDesignerComponent {
   }
 
   protected openCanvas(canvas: FCanvasComponent): void {
+    if (this.viewportInitialized) return;
+    this.viewportInitialized = true;
     const { clientWidth, clientHeight } = this.surface().nativeElement;
     const view = this.graph.initialViewport;
-    if (
-      this.graph.nodes().length &&
-      (!view || view.width !== clientWidth || view.height !== clientHeight)
-    ) {
-      canvas.fitToScreen({ x: 32, y: 32 }, false, false, 1);
+    // Closing the drawer or leaving expanded mode changes the canvas size on reload.
+    const sameWindow =
+      view?.windowSize?.width === window.innerWidth &&
+      view.windowSize.height === window.innerHeight;
+    const sameCanvas = view?.width === clientWidth && view.height === clientHeight;
+    if (this.graph.nodes().length && !sameCanvas && !sameWindow) {
+      canvas.fitToScreen({ x: 32, y: 32 }, false, true, 1);
     }
+    this.scale.set(canvas.getScale());
   }
 
   protected addStep(value: string, input: HTMLInputElement, flow: FFlowComponent): void {
@@ -177,6 +190,7 @@ export class WorkflowDesignerComponent {
       scale: canvas.getScale(),
       width: clientWidth,
       height: clientHeight,
+      windowSize: { width: window.innerWidth, height: window.innerHeight },
     });
   }
 }

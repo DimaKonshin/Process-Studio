@@ -33,6 +33,13 @@ describe('saving a workflow', () => {
     expect(restored.initialViewport).toEqual(view);
   });
 
+  it('restores the window dimensions used to retain zoom when the drawer closes', () => {
+    const graph = new WorkflowCanvasState();
+    const viewport = { ...view, windowSize: { width: 1280, height: 800 } };
+    graph.save(viewport);
+    expect(new WorkflowCanvasState().initialViewport).toEqual(viewport);
+  });
+
   it('renames a step and persists the remaining approval branch after one finish is removed', () => {
     const graph = savedGraph();
     const approval = graph.addStep('approval', 'Решение', position)!;

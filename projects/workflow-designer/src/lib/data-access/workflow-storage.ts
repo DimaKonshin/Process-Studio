@@ -14,6 +14,7 @@ export interface WorkflowViewport {
   readonly scale: number;
   readonly width: number;
   readonly height: number;
+  readonly windowSize?: { readonly width: number; readonly height: number };
 }
 
 interface RestoredWorkflow {
@@ -44,7 +45,11 @@ function isViewport(value: unknown): value is WorkflowViewport {
     isPoint(value['position']) &&
     isPositive(value['scale']) &&
     isPositive(value['width']) &&
-    isPositive(value['height'])
+    isPositive(value['height']) &&
+    (value['windowSize'] === undefined ||
+      (isRecord(value['windowSize']) &&
+        isPositive(value['windowSize']['width']) &&
+        isPositive(value['windowSize']['height'])))
   );
 }
 
