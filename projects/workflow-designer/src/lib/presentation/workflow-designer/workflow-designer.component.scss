@@ -1,0 +1,18 @@
+:host {
+  display: block;
+}
+
+.canvas {
+  display: grid;
+  place-items: center;
+  min-height: clamp(18rem, 56vh, 40rem);
+  border: 1px solid #cbd3df;
+  border-radius: 0.75rem;
+  background: radial-gradient(circle at 1px 1px, #d2d9e2 1px, transparent 1.1px) 0 0 / 1rem 1rem #fafbfd;
+  color: #475467;
+}
+
+p {
+  padding: 0.25rem 0.65rem;
+  background: #fafbfd;
+}
