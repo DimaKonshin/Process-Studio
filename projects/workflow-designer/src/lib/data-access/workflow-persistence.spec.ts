@@ -22,7 +22,7 @@ describe('saving a workflow', () => {
   it('restores the last explicit save, including port IDs, connection ID and viewport', () => {
     const graph = savedGraph();
     const [edge] = graph.connections();
-    expect(JSON.parse(localStorage.getItem(workflowStorageKey)!)).toMatchObject({ version: 1 });
+    expect(JSON.parse(localStorage.getItem(workflowStorageKey)!)).toMatchObject({ version: 2 });
     graph.moveNodes([{ id: 'request-created', position: { x: 100, y: 200 } }]);
     expect(graph.status()).toBe('modified');
 
@@ -33,9 +33,44 @@ describe('saving a workflow', () => {
     expect(restored.initialViewport).toEqual(view);
   });
 
+  it('loads a version 1 save, appends a task and restores the complete chain from version 2', () => {
+    const edge = {
+      id: 'original-edge',
+      sourceId: 'request-created:out',
+      targetId: 'review-request:in',
+    };
+    localStorage.setItem(
+      workflowStorageKey,
+      JSON.stringify({
+        version: 1,
+        nodes: [
+          { id: 'request-created', position },
+          { id: 'review-request', position: { x: 320, y: 45 } },
+        ],
+        connections: [edge],
+        viewport: view,
+      }),
+    );
+
+    const graph = new WorkflowCanvasState();
+    expect(graph.status()).toBe('restored');
+    expect(graph.nodes()[0].position).toEqual(position);
+    expect(graph.connections()).toEqual([edge]);
+    graph.addTask('Уведомить автора', { x: 600, y: 40 });
+    const task = graph.nodes()[2];
+    graph.connect('review-request:out', task.inputId);
+    graph.save(view);
+
+    const restored = new WorkflowCanvasState();
+    expect(restored.nodes()).toEqual(graph.nodes());
+    expect(restored.connections()).toEqual(graph.connections());
+    expect(restored.connections()).toHaveLength(2);
+    expect(restored.nodes()[2].title).toBe('Уведомить автора');
+  });
+
   it.each([
     ['invalid JSON', '{'],
-    ['unknown version', '{"version":2}'],
+    ['unknown version', '{"version":10}'],
     ['incomplete data', '{"version":1,"connections":[]}'],
   ])('opens the initial graph on %s and leaves the stored value untouched', (_, raw) => {
     localStorage.setItem(workflowStorageKey, raw);

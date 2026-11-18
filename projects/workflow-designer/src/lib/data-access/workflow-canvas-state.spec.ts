@@ -18,6 +18,23 @@ describe('WorkflowCanvasState', () => {
     expect(connection).toMatchObject({ sourceId: source, targetId: target });
   });
 
+  it('adds named tasks with unique ports and ignores a blank title', () => {
+    const graph = new WorkflowCanvasState();
+    graph.addTask('  ', { x: 0, y: 0 });
+    expect(graph.nodes()).toHaveLength(2);
+    graph.addTask('  Проверить счёт  ', { x: 20, y: 30 });
+    graph.addTask('Проверить счёт', { x: 40, y: 50 });
+    const [first, second] = graph.nodes().slice(2);
+    expect(first).toMatchObject({
+      title: 'Проверить счёт',
+      kind: 'task',
+      position: { x: 20, y: 30 },
+    });
+    expect(first.id).not.toBe(second.id);
+    expect(first.inputId).not.toBe(second.inputId);
+    expect(first.outputId).not.toBe(second.outputId);
+  });
+
   it('ignores an empty drop, a missing connector, and reversed endpoints', () => {
     const graph = new WorkflowCanvasState();
     graph.connect(source, undefined);

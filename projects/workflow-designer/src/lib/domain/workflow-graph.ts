@@ -18,6 +18,22 @@ export interface WorkflowConnection {
   readonly targetId: string;
 }
 
+export function createWorkflowNode(
+  id: string,
+  kind: WorkflowNode['kind'],
+  title: string,
+  position: WorkflowPosition,
+): WorkflowNode {
+  return {
+    id,
+    kind,
+    title,
+    position,
+    inputId: kind === 'task' ? `${id}:in` : undefined,
+    outputId: `${id}:out`,
+  };
+}
+
 export function canConnect(
   nodes: readonly WorkflowNode[],
   edges: readonly WorkflowConnection[],
