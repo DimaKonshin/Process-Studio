@@ -1,0 +1,9 @@
+:host {
+  display: block;
+}
+
+main {
+  max-width: 76rem;
+  margin-inline: auto;
+  padding: clamp(1rem, 4vw, 3rem);
+}
