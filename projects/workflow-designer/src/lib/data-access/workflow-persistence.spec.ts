@@ -1,0 +1,89 @@
+import { WorkflowCanvasState } from './workflow-canvas-state';
+import { workflowStorageKey } from './workflow-storage';
+
+describe('saving a workflow', () => {
+  const view = { position: { x: 15, y: 40 }, scale: 0.8, width: 900, height: 500 };
+  const position = { x: -15, y: 91 };
+
+  beforeEach(() => localStorage.removeItem(workflowStorageKey));
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.removeItem(workflowStorageKey);
+  });
+
+  function savedGraph(): WorkflowCanvasState {
+    const graph = new WorkflowCanvasState();
+    graph.moveNodes([{ id: 'request-created', position }]);
+    graph.connect('request-created:out', 'review-request:in');
+    graph.save(view);
+    return graph;
+  }
+
+  it('restores the last explicit save, including port IDs, connection ID and viewport', () => {
+    const graph = savedGraph();
+    const [edge] = graph.connections();
+    expect(JSON.parse(localStorage.getItem(workflowStorageKey)!)).toMatchObject({ version: 1 });
+    graph.moveNodes([{ id: 'request-created', position: { x: 100, y: 200 } }]);
+    expect(graph.status()).toBe('modified');
+
+    const restored = new WorkflowCanvasState();
+    expect(restored.status()).toBe('restored');
+    expect(restored.nodes()[0].position).toEqual(position);
+    expect(restored.connections()).toEqual([edge]);
+    expect(restored.initialViewport).toEqual(view);
+  });
+
+  it.each([
+    ['invalid JSON', '{'],
+    ['unknown version', '{"version":2}'],
+    ['incomplete data', '{"version":1,"connections":[]}'],
+  ])('opens the initial graph on %s and leaves the stored value untouched', (_, raw) => {
+    localStorage.setItem(workflowStorageKey, raw);
+    const graph = new WorkflowCanvasState();
+    expect(graph.status()).toBe('invalid');
+    expect(graph.nodes().map((node) => node.id)).toEqual(['request-created', 'review-request']);
+    expect(graph.connections()).toEqual([]);
+    expect(localStorage.getItem(workflowStorageKey)).toBe(raw);
+  });
+
+  it.each(['unknown port', 'duplicate node', 'invalid coordinate', 'duplicate edge'])(
+    'rejects the whole save on %s',
+    (damage) => {
+      savedGraph();
+      const snapshot = JSON.parse(localStorage.getItem(workflowStorageKey)!);
+      if (damage === 'unknown port') snapshot.connections[0].targetId = 'missing';
+      if (damage === 'duplicate node') snapshot.nodes[1].id = snapshot.nodes[0].id;
+      if (damage === 'invalid coordinate') snapshot.nodes[0].position.x = null;
+      if (damage === 'duplicate edge') snapshot.connections.push(snapshot.connections[0]);
+      localStorage.setItem(workflowStorageKey, JSON.stringify(snapshot));
+
+      const graph = new WorkflowCanvasState();
+      expect(graph.status()).toBe('invalid');
+      expect(graph.connections()).toEqual([]);
+    },
+  );
+
+  it('keeps live edits and the previous save after a failed write, and can retry', () => {
+    const graph = savedGraph();
+    const previous = localStorage.getItem(workflowStorageKey);
+    graph.moveNodes([{ id: 'request-created', position: { x: 50, y: 75 } }]);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+    graph.save(view);
+    expect(graph.status()).toBe('save-error');
+    expect(localStorage.getItem(workflowStorageKey)).toBe(previous);
+    graph.save(view);
+    expect(graph.status()).toBe('saved');
+    expect(new WorkflowCanvasState().nodes()[0].position).toEqual({ x: 50, y: 75 });
+  });
+
+  it('continues to open the editor when storage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementationOnce(() => {
+      throw new DOMException('Denied', 'SecurityError');
+    });
+    const graph = new WorkflowCanvasState();
+    expect(graph.status()).toBe('unavailable');
+    expect(graph.nodes()).toHaveLength(2);
+  });
+});

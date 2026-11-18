@@ -17,3 +17,16 @@ export interface WorkflowConnection {
   readonly sourceId: string;
   readonly targetId: string;
 }
+
+export function canConnect(
+  nodes: readonly WorkflowNode[],
+  edges: readonly WorkflowConnection[],
+  sourceId: string,
+  targetId: string,
+): boolean {
+  return (
+    nodes.some((node) => node.outputId === sourceId) &&
+    nodes.some((node) => node.inputId === targetId) &&
+    !edges.some((edge) => edge.sourceId === sourceId && edge.targetId === targetId)
+  );
+}

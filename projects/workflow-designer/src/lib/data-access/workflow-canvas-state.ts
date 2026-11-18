@@ -1,6 +1,15 @@
 import { Injectable, signal } from '@angular/core';
 
-import type { WorkflowConnection, WorkflowNode, WorkflowPosition } from '../domain/workflow-graph';
+import {
+  canConnect,
+  type WorkflowConnection,
+  type WorkflowNode,
+  type WorkflowPosition,
+} from '../domain/workflow-graph';
+
+import { loadWorkflow, saveWorkflow, type WorkflowViewport } from './workflow-storage';
+
+type SaveStatus = ReturnType<typeof loadWorkflow>['status'] | 'modified' | 'saved' | 'save-error';
 
 const initialNodes: readonly WorkflowNode[] = [
   {
@@ -21,35 +30,44 @@ const initialNodes: readonly WorkflowNode[] = [
 
 @Injectable()
 export class WorkflowCanvasState {
-  private readonly nodeList = signal(initialNodes);
-  private readonly connectionList = signal<readonly WorkflowConnection[]>([]);
+  private readonly initial = loadWorkflow(initialNodes);
+  private readonly restored = this.initial.status === 'restored' ? this.initial.graph : undefined;
+  private readonly nodeList = signal(this.restored?.nodes ?? initialNodes);
+  private readonly connectionList = signal<readonly WorkflowConnection[]>(
+    this.restored?.connections ?? [],
+  );
+  private readonly saveStatus = signal<SaveStatus>(this.initial.status);
 
+  readonly initialViewport = this.restored?.viewport;
+  readonly status = this.saveStatus.asReadonly();
   readonly nodes = this.nodeList.asReadonly();
   readonly connections = this.connectionList.asReadonly();
 
   moveNodes(moves: readonly { id: string; position: WorkflowPosition }[]): void {
-    this.nodeList.update((nodes) =>
-      nodes.map((node) => {
-        const move = moves.find(({ id }) => id === node.id);
-        return move ? { ...node, position: { x: move.position.x, y: move.position.y } } : node;
-      }),
-    );
+    const nodes = this.nodes();
+    const next = nodes.map((node) => {
+      const move = moves.find(({ id }) => id === node.id);
+      if (!move || (move.position.x === node.position.x && move.position.y === node.position.y))
+        return node;
+      return { ...node, position: { x: move.position.x, y: move.position.y } };
+    });
+    if (next.some((node, i) => node !== nodes[i])) {
+      this.nodeList.set(next);
+      this.saveStatus.set('modified');
+    }
   }
 
   connect(sourceId: string, targetId: string | undefined): void {
-    const nodes = this.nodes();
-    if (
-      !targetId ||
-      !nodes.some((n) => n.outputId === sourceId) ||
-      !nodes.some((n) => n.inputId === targetId)
-    ) {
+    const edges = this.connections();
+    if (!targetId || !canConnect(this.nodes(), edges, sourceId, targetId)) {
       return;
     }
+    this.connectionList.set([...edges, { id: crypto.randomUUID(), sourceId, targetId }]);
+    this.saveStatus.set('modified');
+  }
 
-    this.connectionList.update((connections) =>
-      connections.some((edge) => edge.sourceId === sourceId && edge.targetId === targetId)
-        ? connections
-        : [...connections, { id: crypto.randomUUID(), sourceId, targetId }],
-    );
+  save(viewport: WorkflowViewport): void {
+    const saved = saveWorkflow(this.nodes(), this.connections(), viewport);
+    this.saveStatus.set(saved ? 'saved' : 'save-error');
   }
 }
