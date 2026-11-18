@@ -2,17 +2,62 @@
   display: block;
 }
 
-.canvas {
-  display: grid;
-  place-items: center;
-  min-height: clamp(18rem, 56vh, 40rem);
-  border: 1px solid #cbd3df;
-  border-radius: 0.75rem;
-  background: radial-gradient(circle at 1px 1px, #d2d9e2 1px, transparent 1.1px) 0 0 / 1rem 1rem #fafbfd;
-  color: #475467;
+.hint {
+  margin: 0 0 1rem;
+  color: #475569;
+  line-height: 1.5;
 }
 
-p {
-  padding: 0.25rem 0.65rem;
-  background: #fafbfd;
+f-flow {
+  --ff-canvas-background-color: transparent;
+  --ff-node-width: 13rem;
+  --ff-node-padding: 1rem 1.25rem;
+  --ff-node-border-radius: 0.75rem;
+  --ff-node-background-color: #fff;
+  --ff-node-color: #17263a;
+  --ff-node-border-color: #b8c7d8;
+  --ff-node-border-color-selected: #2563a7;
+  --ff-connector-size: 1.25rem;
+  --ff-connector-border-color: #356797;
+  --ff-connector-connected-color: #356797;
+  --ff-connection-color: #356797;
+  --ff-connection-width: 2.5px;
+  --ff-flow-font-family: inherit;
+
+  display: block;
+  height: clamp(20rem, 56vh, 40rem);
+  box-sizing: border-box;
+  border: 1px solid #c5d0df;
+  border-radius: 0.75rem;
+  background: radial-gradient(circle at 1px 1px, #cbd5e1 1px, transparent 1.3px) 0 0 / 16px 16px
+    #f8fafc;
+}
+
+.step {
+  display: grid;
+  gap: 0.25rem;
+  text-align: left;
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.step-kind {
+  color: #41658e;
+  font-size: 0.8125rem;
+  font-weight: 600;
+
+  &.start {
+    color: #11705d;
+  }
+}
+
+.step strong {
+  font-size: 1rem;
+}
+
+.port {
+  cursor: crosshair;
 }

@@ -1,12 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { WorkflowDesignerComponent } from 'workflow-designer';
 
 import { App } from './app';
 import { AppModule } from './app.module';
 
 describe('Workflow editor routing', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [AppModule] });
+    TestBed.configureTestingModule({ imports: [AppModule] }).overrideComponent(
+      WorkflowDesignerComponent,
+      { set: { template: '', imports: [] } },
+    );
   });
 
   it.each(['/', '/workflow', '/workflow/editor'])('opens the editor from %s', async (url) => {

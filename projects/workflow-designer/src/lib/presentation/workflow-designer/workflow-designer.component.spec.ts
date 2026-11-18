@@ -1,12 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 
+import { WorkflowCanvasState } from '../../data-access/workflow-canvas-state';
 import { WorkflowDesignerComponent } from './workflow-designer.component';
 
 describe('WorkflowDesignerComponent', () => {
-  it('renders the empty workspace', async () => {
-    const fixture = TestBed.createComponent(WorkflowDesignerComponent);
-    await fixture.whenStable();
+  it('starts each editor with its own unconnected graph', () => {
+    const first = TestBed.createComponent(WorkflowDesignerComponent);
+    const second = TestBed.createComponent(WorkflowDesignerComponent);
+    const graph = first.debugElement.injector.get(WorkflowCanvasState);
+    const [start, task] = graph.nodes();
 
-    expect(fixture.nativeElement.querySelector('section')?.textContent).toContain('Схема пока пуста');
+    graph.connect(start.outputId!, task.inputId);
+    expect(graph.connections()).toHaveLength(1);
+    expect(second.debugElement.injector.get(WorkflowCanvasState).connections()).toEqual([]);
   });
 });

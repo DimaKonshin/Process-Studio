@@ -1,3 +1,55 @@
-<section class="canvas" aria-label="Рабочая область схемы">
-  <p>Схема пока пуста</p>
+<section aria-label="Рабочая область схемы">
+  <p class="hint">
+    Двигайте блоки за карточки. Чтобы провести стрелку, потяните от правой точки блока «Заявка
+    создана» к левой точке блока «Проверить заявку».
+  </p>
+  <f-flow
+    fDraggable
+    (fFullRendered)="canvas.fitToScreen({ x: 32, y: 32 }, false, false, 1)"
+    (fMoveNodes)="graph.moveNodes($event.nodes)"
+    (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"
+  >
+    <f-canvas #canvas>
+      <f-connection-for-create fType="bezier" />
+      @for (edge of graph.connections(); track edge.id) {
+        <f-connection
+          [fConnectionId]="edge.id"
+          [fSourceId]="edge.sourceId"
+          [fTargetId]="edge.targetId"
+          fType="bezier"
+          [fReassignDisabled]="true"
+        >
+          <f-connection-marker-arrow />
+        </f-connection>
+      }
+      @for (node of graph.nodes(); track node.id) {
+        <div class="step" fNode fDragHandle [fNodeId]="node.id" [fNodePosition]="node.position">
+          <span class="step-kind" [class.start]="node.kind === 'start'">{{
+            node.kind === 'start' ? 'Старт' : 'Задача'
+          }}</span>
+          <strong>{{ node.title }}</strong>
+          @if (node.inputId; as inputId) {
+            <span
+              class="port left"
+              fConnector
+              fConnectorType="target"
+              [fConnectorId]="inputId"
+              fConnectorConnectableSide="left"
+              title="Вход"
+            ></span>
+          }
+          @if (node.outputId; as outputId) {
+            <span
+              class="port right"
+              fConnector
+              fConnectorType="source"
+              [fConnectorId]="outputId"
+              fConnectorConnectableSide="right"
+              title="Выход"
+            ></span>
+          }
+        </div>
+      }
+    </f-canvas>
+  </f-flow>
 </section>
