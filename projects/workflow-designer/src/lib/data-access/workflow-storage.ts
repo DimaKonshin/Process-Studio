@@ -5,6 +5,7 @@ import {
   type WorkflowConnection,
   type WorkflowNode,
   type WorkflowPosition,
+  type RouteVertex,
 } from '../domain/workflow-graph';
 
 export const workflowStorageKey = 'process-studio.workflow';
@@ -53,7 +54,25 @@ function isViewport(value: unknown): value is WorkflowViewport {
   );
 }
 
-function isConnection(value: unknown): value is WorkflowConnection {
+function isRoute(value: unknown, count: number): value is readonly RouteVertex[] | undefined {
+  if (value === undefined) return true;
+  if (!Array.isArray(value) || value.length < 2 || !count) return false;
+  let controls = 0;
+  for (const [i, v] of value.entries()) {
+    if (!isRecord(v) || !isPoint(v)) return false;
+    if ('control' in v) {
+      if (v['control'] !== true || i === 0 || i === value.length - 1) return false;
+      controls++;
+    }
+    if (i && Math.min(Math.abs(v.x - value[i - 1].x), Math.abs(v.y - value[i - 1].y)) > 0.01)
+      return false;
+  }
+  return controls === count;
+}
+
+function isConnection(
+  value: unknown,
+): value is Omit<WorkflowConnection, 'route'> & { route?: unknown } {
   return (
     isRecord(value) &&
     typeof value['id'] === 'string' &&
@@ -116,6 +135,9 @@ function decode(value: unknown, steps: readonly WorkflowNode[]): RestoredWorkflo
       sourceId: item.sourceId,
       targetId: item.targetId,
       ...(item.waypoints && { waypoints: item.waypoints }),
+      ...(item.route && isRoute(item.route, item.waypoints?.length ?? 0)
+        ? { route: item.route }
+        : {}),
     });
   }
   return { nodes: restoredNodes, connections: edges, viewport };

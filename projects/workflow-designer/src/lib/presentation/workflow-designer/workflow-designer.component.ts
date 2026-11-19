@@ -9,6 +9,7 @@ import {
   linkedSignal,
   signal,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 import {
   FCanvasComponent,
@@ -24,14 +25,24 @@ import { WorkflowCanvasState } from '../../data-access/workflow-canvas-state';
 
 import { type ApprovalOutcome, type WorkflowStepKind } from '../../domain/workflow-graph';
 
+import { captureRoute, nearestRouteSite, routeSites } from '../../domain/route-sites';
+import { ConnectionPropertiesComponent } from '../connection-properties/connection-properties.component';
 import { CanvasControlsComponent, zoomLimits } from '../canvas-controls/canvas-controls.component';
 import { StepPropertiesComponent } from '../step-properties/step-properties.component';
+import { ConnectionRouteDirective } from './connection-route.directive';
 import { WaypointHandlesPipe } from './waypoint-handles.pipe';
 
 @Component({
   selector: 'wf-workflow-designer',
-  imports: [FFlowModule, StepPropertiesComponent, CanvasControlsComponent, WaypointHandlesPipe],
-  host: { '(document:keydown.escape)': 'onEscape()' },
+  imports: [
+    FFlowModule,
+    StepPropertiesComponent,
+    CanvasControlsComponent,
+    ConnectionPropertiesComponent,
+    WaypointHandlesPipe,
+    ConnectionRouteDirective,
+  ],
+  host: { '(document:keydown.escape)': 'expanded.set(false)' },
   providers: [WorkflowCanvasState, provideFFlow(withA11y())],
   templateUrl: './workflow-designer.component.html',
   styleUrl: './workflow-designer.component.scss',
@@ -74,23 +85,118 @@ export class WorkflowDesignerComponent {
   );
   protected readonly selectedConnectionId = signal<string | null>(null);
 
-  protected readonly placingPoints = linkedSignal({
+  private readonly renderedEdges = viewChildren(ConnectionRouteDirective);
+  private readonly selectedRoute = computed(() =>
+    this.renderedEdges().find((item) => item.edge()?.id === this.selectedConnectionId()),
+  );
+  protected readonly selectedEdge = computed(() =>
+    this.graph.connections().find((edge) => edge.id === this.selectedConnectionId()),
+  );
+  protected readonly endpoints = computed(() => {
+    const edge = this.selectedEdge();
+    if (!edge) return;
+    const source = this.graph
+      .nodes()
+      .find((node) => node.outputs.some((port) => port.id === edge.sourceId));
+    const target = this.graph.nodes().find((node) => node.inputId === edge.targetId);
+    const outcome = source?.outputs.find((port) => port.id === edge.sourceId)?.outcome;
+    return {
+      source: outcome
+        ? `${source?.title} · ${this.outcomeLabels[outcome]}`
+        : (source?.title ?? edge.sourceId),
+      target: target?.title ?? edge.targetId,
+    };
+  });
+  protected readonly sites = computed(() => {
+    const route = this.selectedRoute();
+    return route ? routeSites(route.vertices(), route.edge()?.waypoints ?? []) : [];
+  });
+  protected readonly choice = linkedSignal<string | null, number | null>({
+    source: this.selectedConnectionId,
+    computation: () => null,
+  });
+  protected readonly showSites = linkedSignal({
     source: this.selectedConnectionId,
     computation: () => false,
   });
+  protected readonly pointIndex = linkedSignal<string | null, number | null>({
+    source: this.selectedConnectionId,
+    computation: () => null,
+  });
+  protected readonly activePoint = computed(
+    () => this.selectedRoute()?.handles()[this.pointIndex() ?? -1],
+  );
+  protected choosePoint(index: number): void {
+    this.pointIndex.set(index);
+    this.choice.set(null);
+    this.showSites.set(false);
+  }
+  protected chooseIndex(index: number): void {
+    this.pointIndex.set(null);
+    this.choice.set(index);
+    this.showSites.set(false);
+  }
+  protected readonly siteIndex = computed(() => {
+    const sites = this.sites();
+    const picked = this.choice();
+    if (picked !== null) return sites[picked] ? picked : -1;
+    if (this.selectedEdge()?.waypoints?.length) return -1;
+    // For keyboard selection, start at the midpoint of the longest leg.
+    let longest = 0;
+    let index = -1;
+    for (const [i, site] of sites.entries()) {
+      const length = Math.hypot(site.to.x - site.from.x, site.to.y - site.from.y);
+      if (length > longest) {
+        longest = length;
+        index = i;
+      }
+    }
+    return index;
+  });
+  protected readonly preview = computed(() => this.sites()[this.siteIndex()]);
+  protected readonly dragExistingPoint = (event: Event): boolean =>
+    event.target instanceof Element && !!event.target.closest('.f-waypoint');
 
-  protected onEscape(): void {
-    if (this.placingPoints()) this.placingPoints.set(false);
-    else this.expanded.set(false);
+  protected chooseSite(event: MouseEvent, edgeId: string, flow: FFlowComponent): void {
+    if (edgeId !== this.selectedConnectionId() || this.dragExistingPoint(event)) return;
+    const position = flow.getPositionInFlow({ x: event.clientX, y: event.clientY });
+    this.chooseIndex(nearestRouteSite(this.sites(), position, 8 / this.scale()));
   }
 
-  protected placeWaypoint(event: MouseEvent, flow: FFlowComponent): void {
-    if (!this.placingPoints() || (event.target instanceof Element && event.target.closest('.step')))
-      return;
-    const edge = this.graph.connections().find((item) => item.id === this.selectedConnectionId());
-    if (!edge) return;
-    const point = flow.getPositionInFlow({ x: event.clientX, y: event.clientY });
-    this.graph.setWaypoints(edge.id, [...(edge.waypoints ?? []), point]);
+  protected addRoutePoint(): void {
+    const edge = this.selectedEdge();
+    const site = this.preview();
+    this.showSites.set(false);
+    if (!edge || !site) return;
+    const points = [...(edge.waypoints ?? [])];
+    points.splice(site.insertAt, 0, site.position);
+    this.choice.set(null);
+    const route = captureRoute(this.selectedRoute()!.vertices(), points);
+    this.graph.setWaypoints(edge.id, points, route);
+    this.choosePoint(site.insertAt);
+  }
+
+  protected updateRoutePoints(id: string, points: { x: number; y: number }[]): void {
+    this.choice.set(null);
+    this.showSites.set(false);
+    const renderer = this.renderedEdges().find((item) => item.edge()?.id === id);
+    if (!renderer) return;
+    if (points.length !== renderer.edge()?.waypoints?.length) this.pointIndex.set(null);
+    const edit = renderer.finish(points);
+    this.graph.setWaypoints(id, edit.points, edit.route);
+  }
+
+  protected removePoint(): void {
+    const edge = this.selectedEdge(),
+      index = this.pointIndex();
+    if (!edge?.waypoints || index === null || !edge.waypoints[index]) return;
+    const points = edge.waypoints.filter((_, i) => i !== index);
+    this.updateRoutePoints(edge.id, points);
+  }
+
+  protected deleteSelection(flow: FFlowComponent): void {
+    if (this.pointIndex() !== null) this.removePoint();
+    else this.removeSelectedConnection(flow);
   }
 
   protected onSelectionChange({ nodeIds, groupIds, connectionIds }: FSelectionChangeEvent): void {
@@ -111,6 +217,7 @@ export class WorkflowDesignerComponent {
   protected dismissProperties(flow: FFlowComponent): void {
     flow.clearSelection();
     this.selectedNodeId.set(null);
+    this.selectedConnectionId.set(null);
     this.surface().nativeElement.focus({ preventScroll: true });
   }
 

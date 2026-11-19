@@ -8,6 +8,7 @@ import {
   type WorkflowConnection,
   type WorkflowNode,
   type WorkflowPosition,
+  type RouteVertex,
 } from '../domain/workflow-graph';
 
 import { loadWorkflow, saveWorkflow, type WorkflowViewport } from './workflow-storage';
@@ -93,7 +94,11 @@ export class WorkflowCanvasState {
     this.saveStatus.set('modified');
   }
 
-  setWaypoints(id: string, points: readonly WorkflowPosition[]): void {
+  setWaypoints(
+    id: string,
+    points: readonly WorkflowPosition[],
+    route?: readonly RouteVertex[],
+  ): void {
     const edges = this.connections();
     const edge = edges.find((item) => item.id === id);
     if (!edge) return;
@@ -104,7 +109,9 @@ export class WorkflowCanvasState {
     )
       return;
     const waypoints = points.map(({ x, y }) => ({ x, y }));
-    this.connectionList.set(edges.map((item) => (item === edge ? { ...edge, waypoints } : item)));
+    this.connectionList.set(
+      edges.map((item) => (item === edge ? { ...edge, waypoints, route } : item)),
+    );
     this.saveStatus.set('modified');
   }
 

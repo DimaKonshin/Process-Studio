@@ -59,6 +59,26 @@ describe('saving a workflow', () => {
     expect(new WorkflowCanvasState().connections()).toEqual([other, { ...edge, waypoints: [] }]);
   });
 
+  it('retains fixed bends and restores the connection from waypoints if its bend data is damaged', () => {
+    const graph = savedGraph();
+    const id = graph.connections()[0].id;
+    const route = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0, control: true as const },
+      { x: 20, y: 0 },
+    ];
+    graph.setWaypoints(id, [{ x: 10, y: 15 }], route);
+    graph.save(view);
+    expect(new WorkflowCanvasState().connections()[0].route).toEqual(route);
+    const data = JSON.parse(localStorage.getItem(workflowStorageKey)!);
+    data.connections[0].route[1].x = null;
+    localStorage.setItem(workflowStorageKey, JSON.stringify(data));
+    const restored = new WorkflowCanvasState();
+    expect(restored.status()).toBe('restored');
+    expect(restored.connections()[0].route).toBeUndefined();
+    expect(restored.connections()[0].waypoints).toEqual([{ x: 10, y: 15 }]);
+  });
+
   it('restores the window dimensions used to retain zoom when the drawer closes', () => {
     const graph = new WorkflowCanvasState();
     const viewport = { ...view, windowSize: { width: 1280, height: 800 } };

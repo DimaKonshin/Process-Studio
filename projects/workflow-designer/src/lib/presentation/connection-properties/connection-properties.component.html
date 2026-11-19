@@ -1,0 +1,65 @@
+<aside aria-label="Свойства связи">
+  <header>
+    <h2>Свойства связи</h2>
+    <button
+      type="button"
+      class="close"
+      aria-label="Закрыть свойства связи"
+      (click)="dismiss.emit()"
+    >
+      ×
+    </button>
+  </header>
+  <dl>
+    <dt>Откуда</dt>
+    <dd>{{ source() }}</dd>
+    <dt>Куда</dt>
+    <dd>{{ target() }}</dd>
+  </dl>
+  <label
+    >Место для точки
+    <select #site (change)="choose.emit(+site.value)">
+      <option value="-1" disabled [selected]="selectedIndex() < 0">
+        Выберите на линии или в списке
+      </option>
+      @for (item of sites(); track $index) {
+        <option [value]="$index" [selected]="$index === selectedIndex()">
+          {{ $index + 1 }}. {{ labels[item.kind] }}
+        </option>
+      }
+    </select>
+  </label>
+  <button
+    type="button"
+    class="show-sites"
+    [attr.aria-pressed]="showSites()"
+    (click)="toggleSites.emit()"
+  >
+    {{ showSites() ? 'Скрыть места на схеме' : 'Показать места на схеме' }}
+  </button>
+  <button type="button" class="add" [disabled]="selectedIndex() < 0" (click)="add.emit()">
+    Добавить точку
+  </button>
+  <p>
+    Середину отрезка тяните поперёк линии, угол — в любом направлении. Правый щелчок убирает точку.
+  </p>
+  @if (points().length) {
+    <div class="point-actions" (keydown.delete)="pointIndex() !== null && removePoint.emit()">
+      <label
+        >Точка маршрута
+        <select #handle (change)="choosePoint.emit(+handle.value)">
+          <option value="-1" disabled [selected]="pointIndex() === null">Выберите точку</option>
+          @for (point of points(); track $index) {
+            <option [value]="$index" [selected]="pointIndex() === $index">
+              Точка {{ $index + 1 }}
+            </option>
+          }
+        </select>
+      </label>
+      <button type="button" [disabled]="pointIndex() === null" (click)="removePoint.emit()">
+        Удалить точку
+      </button>
+    </div>
+  }
+  <button type="button" class="delete" (click)="remove.emit()">Удалить связь</button>
+</aside>

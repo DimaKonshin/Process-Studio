@@ -147,29 +147,23 @@ f-flow {
   }
 }
 
-.editor-toolbar .remove-connection {
-  border: 1px solid currentColor;
-  background: white;
-  color: #943b2e;
-
-  &:hover:enabled {
-    background: #fff1ed;
+.route-preview {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+  fill: white;
+  stroke: #285d91;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  .selected-point {
+    fill: none;
+    stroke: #184e86;
+    stroke-width: 2;
+    stroke-dasharray: none;
   }
-  &:disabled {
-    background: #f3f5f7;
-    border-color: #c7d0db;
-    color: #667384;
-    cursor: default;
-  }
-}
-
-.route-edit:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-f-flow.placing-points {
-  cursor: crosshair;
 }
 
 f-connection.f-selected {

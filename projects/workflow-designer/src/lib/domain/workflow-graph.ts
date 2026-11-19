@@ -26,11 +26,17 @@ export interface WorkflowNode {
   readonly outputs: readonly WorkflowOutput[];
 }
 
+/** Original bends of a manually edited route, in source-to-target order, including both ports. */
+export interface RouteVertex extends WorkflowPosition {
+  readonly control?: true;
+}
+
 export interface WorkflowConnection {
   readonly id: string;
   readonly sourceId: string;
   readonly targetId: string;
   readonly waypoints?: readonly WorkflowPosition[];
+  readonly route?: readonly RouteVertex[];
 }
 
 function outputsFor(id: string, kind: WorkflowStepKind): WorkflowOutput[] {

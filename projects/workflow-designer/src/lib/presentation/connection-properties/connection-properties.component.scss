@@ -1,0 +1,34 @@
+@use '../properties-drawer';
+dl {
+  margin-block: 1.25rem;
+}
+dt {
+  font-size: 0.875rem;
+  color: #475569;
+}
+dd {
+  margin: 0.2rem 0 0.75rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.show-sites {
+  display: block;
+  margin-top: 0.6rem;
+}
+.add {
+  margin-top: 0.65rem;
+}
+.point-actions {
+  display: grid;
+  gap: 0.5rem;
+}
+.point-actions button {
+  justify-self: start;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+p {
+  line-height: 1.45;
+}

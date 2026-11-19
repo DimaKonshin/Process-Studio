@@ -1,20 +1,13 @@
 <section
   class="designer"
   aria-label="Рабочая область схемы"
-  [class.with-properties]="selectedStep()"
+  [class.with-properties]="selectedStep() || selectedEdge()"
   [class.expanded]="expanded()"
 >
   <ng-content />
   <p class="hint">
-    @if (placingPoints()) {
-      Щёлкайте по холсту от начала стрелки к концу. Когда маршрут готов, нажмите «Готово» или Esc.
-    } @else if (selectedConnectionId()) {
-      Потяните зелёный кружок, чтобы добавить изгиб, или выберите «Расставить точки». Синюю точку
-      можно передвинуть или убрать правой кнопкой мыши.
-    } @else {
-      Нажмите на шаг, чтобы открыть его свойства. Потяните от выхода ко входу, чтобы провести
-      стрелку. Нажмите на линию, чтобы изменить маршрут или удалить связь клавишей Delete.
-    }
+    Нажмите на шаг или стрелку, чтобы открыть свойства. Чтобы провести стрелку, потяните от выхода
+    одного шага ко входу другого.
   </p>
   <div class="editor-toolbar">
     <form
@@ -35,23 +28,6 @@
       </label>
       <button type="submit">Добавить шаг</button>
     </form>
-    <button
-      type="button"
-      class="route-edit"
-      [disabled]="selectedConnectionId() === null"
-      [attr.aria-pressed]="placingPoints()"
-      (click)="placingPoints.set(!placingPoints())"
-    >
-      {{ placingPoints() ? 'Готово' : 'Расставить точки' }}
-    </button>
-    <button
-      type="button"
-      class="remove-connection"
-      [disabled]="selectedConnectionId() === null"
-      (click)="removeSelectedConnection(surface)"
-    >
-      Удалить связь
-    </button>
     <button type="button" (click)="save(canvas)">Сохранить</button>
     <span role="status">{{ messages[graph.status()] }}</span>
   </div>
@@ -60,14 +36,12 @@
       #surface
       aria-label="Схема процесса"
       fDraggable
-      [fDraggableDisabled]="placingPoints()"
-      [class.placing-points]="placingPoints()"
-      (click)="placeWaypoint($event, surface)"
+      [fConnectionWaypointsTrigger]="dragExistingPoint"
       (fSelectionChange)="onSelectionChange($event)"
-      (fDeleteSelected)="removeSelectedConnection(surface)"
+      (fDeleteSelected)="deleteSelection(surface)"
       (fFullRendered)="openCanvas(canvas)"
       (fMoveNodes)="graph.moveNodes($event.nodes)"
-      (fConnectionWaypointsChanged)="graph.setWaypoints($event.connectionId, $event.waypoints)"
+      (fConnectionWaypointsChanged)="updateRoutePoints($event.connectionId, $event.waypoints)"
       (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"
     >
       <f-canvas
@@ -85,9 +59,12 @@
             [fConnectionId]="edge.id"
             [fSourceId]="edge.sourceId"
             [fTargetId]="edge.targetId"
-            fType="segment"
+            fType="workflow-route"
+            [wfRoute]="edge"
+            (selectHandle)="choosePoint($event)"
             [fRadius]="0"
             [fReassignDisabled]="true"
+            (click)="chooseSite($event, edge.id, surface)"
           >
             <f-connection-marker-arrow />
             <f-connection-waypoints
@@ -97,6 +74,26 @@
             />
           </f-connection>
         }
+        <svg ngProjectAs="[fNodes]" class="route-preview" aria-hidden="true">
+          @if (activePoint(); as point) {
+            <circle class="selected-point" [attr.cx]="point.x" [attr.cy]="point.y" r="9" />
+          }
+          @if (showSites()) {
+            @for (candidate of sites(); track $index) {
+              @if ($index !== siteIndex()) {
+                <circle
+                  class="guide"
+                  [attr.cx]="candidate.position.x"
+                  [attr.cy]="candidate.position.y"
+                  r="4"
+                />
+              }
+            }
+          }
+          @if (preview(); as site) {
+            <circle [attr.cx]="site.position.x" [attr.cy]="site.position.y" r="5" />
+          }
+        </svg>
         @for (node of graph.nodes(); track node.id) {
           <div
             class="step"
@@ -151,6 +148,23 @@
       [kindLabel]="kindLabels[step.kind]"
       (rename)="graph.renameStep($event.id, $event.title)"
       (remove)="removeSelectedStep(surface)"
+      (dismiss)="dismissProperties(surface)"
+    />
+  } @else if (endpoints(); as ends) {
+    <wf-connection-properties
+      [source]="ends.source"
+      [target]="ends.target"
+      [sites]="sites()"
+      [selectedIndex]="siteIndex()"
+      [points]="selectedEdge()?.waypoints ?? []"
+      [pointIndex]="pointIndex()"
+      (choosePoint)="choosePoint($event)"
+      (removePoint)="removePoint()"
+      [showSites]="showSites()"
+      (toggleSites)="showSites.set(!showSites())"
+      (choose)="chooseIndex($event)"
+      (add)="addRoutePoint()"
+      (remove)="removeSelectedConnection(surface)"
       (dismiss)="dismissProperties(surface)"
     />
   }
