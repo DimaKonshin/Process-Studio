@@ -1,4 +1,4 @@
-import { constrainHandles, editablePolyline } from './editable-route';
+import { constrainHandles, editablePolyline, removeRouteControl } from './editable-route';
 import { captureRoute, singleSegmentFrame } from './route-sites';
 
 describe('editing the return leg beside an input', () => {
@@ -40,6 +40,85 @@ describe('editing the return leg beside an input', () => {
     }
     const legacy = split.map((v) => (v.x === 650 ? p(v.x, v.y) : v));
     expect(singleSegmentFrame(vertices, legacy, 0, middle)).toEqual(restored);
+  });
+
+  it('keeps a lowered return span when its midpoint is removed and the left leg still has a handle', () => {
+    const path = [vertices[0], vertices[1], p(726, 220), p(260, 220), vertices[4], vertices[5]];
+    const mid = p(493, 220),
+      left = p(260, 195);
+    const edit = removeRouteControl(
+      captureRoute(path, [mid, left]),
+      [mid, left],
+      0,
+      path[0],
+      path[5],
+    );
+    expect(edit.points).toEqual([left]);
+    expect(editablePolyline(edit.route, edit.points, path[0], path[5])).toEqual(path);
+
+    const renewed = captureRoute(path, [mid, left]);
+    const moved = constrainHandles(renewed, [p(mid.x, 260), left], path[0], path[5], 0);
+    expect(editablePolyline(renewed, moved, path[0], path[5])).toEqual([
+      path[0],
+      path[1],
+      p(726, 260),
+      p(260, 260),
+      path[4],
+      path[5],
+    ]);
+  });
+
+  it('keeps the left midpoint on its vertical leg as the horizontal span passes its old height', () => {
+    const path = [vertices[0], vertices[1], p(726, 220), p(260, 220), vertices[4], vertices[5]];
+    const mid = p(493, 220),
+      left = p(260, 195);
+    const frame = captureRoute(path, [mid, left]);
+    const handles = constrainHandles(frame, [p(mid.x, 180), left], path[0], path[5], 0);
+    expect(handles[1]).toEqual(p(260, 175));
+    expect(editablePolyline(frame, handles, path[0], path[5])).toEqual([
+      path[0],
+      path[1],
+      p(726, 180),
+      p(260, 180),
+      path[4],
+      path[5],
+    ]);
+  });
+
+  it('moves a selected span and its marked corner together in either drag direction', () => {
+    const mid = p(493, 130),
+      corner = vertices[3];
+    const frame = captureRoute(vertices, [mid, corner]);
+    const end = vertices[5];
+    const handles = constrainHandles(frame, [p(mid.x, 112), corner], vertices[0], end, 0);
+    expect(handles).toEqual([p(mid.x, 112), p(corner.x, 112)]);
+    expect(editablePolyline(frame, handles, vertices[0], end)).toEqual([
+      vertices[0],
+      vertices[1],
+      p(726, 112),
+      p(260, 112),
+      vertices[4],
+      end,
+    ]);
+    expect(constrainHandles(frame, [mid, p(245, 116)], vertices[0], end, 1)).toEqual([
+      p((726 + 245) / 2, 116),
+      p(245, 116),
+    ]);
+  });
+
+  it('releases the offset of a deleted midpoint when two midpoints split the same span', () => {
+    const a = p(615, 130),
+      b = p(493, 130),
+      shifted = p(a.x, 115);
+    const edit = removeRouteControl(
+      captureRoute(vertices, [a, b]),
+      [shifted, b],
+      0,
+      vertices[0],
+      vertices[5],
+    );
+    expect(edit.points).toEqual([b]);
+    expect(editablePolyline(edit.route, edit.points, vertices[0], vertices[5])).toEqual(vertices);
   });
 
   it('translates a straight connection as one span between the two port leads', () => {

@@ -1,3 +1,4 @@
+import { captureRoute } from './route-sites';
 import type { RouteVertex, WorkflowPosition as Point } from './workflow-graph';
 
 function horizontal(a: Point, b: Point): boolean {
@@ -10,11 +11,14 @@ export function constrainHandles(
   requested: readonly Point[],
   source: Point,
   target: Point,
+  draggedIndex?: number,
 ): Point[] {
   const handles: Point[] = [];
+  const indices = new Map<number, number>();
   for (let i = 1; i < route.length - 1; i++) {
     const v = route[i];
     if (!v.control) continue;
+    indices.set(i, handles.length);
     const p = requested[handles.length] ?? v;
     const incoming = horizontal(route[i - 1], v);
     const outgoing = horizontal(v, route[i + 1]);
@@ -28,11 +32,49 @@ export function constrainHandles(
       x = Math.min(x, target.x - Math.min(8, Math.max(0, route[last].x - route[last - 1].x)));
     handles.push({ x, y });
   }
+  // A midpoint translates a span, including a manual corner at either end.
+  // Two midpoints on the same span remain independent so it can be split deliberately.
+  for (const [i, mid] of indices) {
+    const alongX = horizontal(route[i - 1], route[i]);
+    if (alongX !== horizontal(route[i], route[i + 1])) continue;
+    const axis = alongX ? 'y' : 'x';
+    const corners: number[] = [];
+    for (const j of [i - 1, i + 1]) {
+      const corner = indices.get(j);
+      if (
+        corner !== undefined &&
+        horizontal(route[j - 1], route[j]) !== horizontal(route[j], route[j + 1])
+      ) {
+        corners.push(corner);
+      }
+    }
+    const driver =
+      draggedIndex !== undefined && corners.includes(draggedIndex) ? draggedIndex : mid;
+    for (const index of [mid, ...corners]) {
+      handles[index] = { ...handles[index], [axis]: handles[driver][axis] };
+    }
+  }
+  // Resizing a leg keeps its midpoint at the same fraction between the two bends.
+  // Otherwise a shortened leg doubles back through the old handle position.
+  const anchors = routeAnchors(route, handles, source, target);
+  for (const [i, index] of indices) {
+    const alongX = horizontal(route[i - 1], route[i]);
+    if (alongX !== horizontal(route[i], route[i + 1])) continue;
+    const axis = alongX ? 'x' : 'y';
+    const from = route[i - 1][axis],
+      to = route[i + 1][axis];
+    const start = anchors[i - 1][axis],
+      end = anchors[i + 1][axis];
+    if (from === to || (start === from && end === to)) continue;
+    const fraction = (route[i][axis] - from) / (to - from);
+    // A handle on a turnaround can lie outside its two neighbours.
+    if (fraction <= 0 || fraction >= 1) continue;
+    handles[index] = { ...handles[index], [axis]: start + fraction * (end - start) };
+  }
   return handles;
 }
 
-/** Move the two neighbouring bends. Everywhere else the saved topology stays fixed. */
-export function editablePolyline(
+function routeAnchors(
   route: readonly RouteVertex[],
   handles: readonly Point[],
   source: Point,
@@ -53,6 +95,18 @@ export function editablePolyline(
     }
     anchors[i] = bend;
   }
+  return anchors;
+}
+
+/** Move the two neighbouring bends. Everywhere else the saved topology stays fixed. */
+export function editablePolyline(
+  route: readonly RouteVertex[],
+  handles: readonly Point[],
+  source: Point,
+  target: Point,
+): Point[] {
+  const last = route.length - 1;
+  const anchors = routeAnchors(route, handles, source, target);
   const result: Point[] = [source];
   function append(p: Point): void {
     const b = result[result.length - 1];
@@ -117,4 +171,39 @@ export function editablePolyline(
     append(b);
   }
   return result;
+}
+
+/** Release one handle without rebuilding unrelated legs from the ports. */
+export function removeRouteControl(
+  frame: readonly RouteVertex[],
+  previous: readonly Point[],
+  removed: number,
+  source: Point,
+  target: Point,
+): { points: Point[]; route: RouteVertex[] } {
+  const handles = constrainHandles(frame, previous, source, target);
+  const points = handles.filter((_, index) => index !== removed);
+  const control = frame.filter((v) => v.control)[removed];
+  const i = frame.indexOf(control);
+  const alongX = horizontal(frame[i - 1], frame[i]);
+  const sharesSpan =
+    alongX === horizontal(frame[i], frame[i + 1]) &&
+    [i - 1, i + 1].some(
+      (j) =>
+        frame[j].control &&
+        horizontal(frame[j - 1], frame[j]) === alongX &&
+        horizontal(frame[j], frame[j + 1]) === alongX,
+    );
+
+  // If two midpoints split a span, discard the offset introduced by the removed one.
+  // Otherwise keep the visible bends, e.g. a lowered return path with a handle on its left leg.
+  const vertices = sharesSpan
+    ? editablePolyline(
+        frame.filter((_, index) => index !== i),
+        points,
+        source,
+        target,
+      )
+    : editablePolyline(frame, handles, source, target);
+  return { points, route: captureRoute(vertices, points) };
 }

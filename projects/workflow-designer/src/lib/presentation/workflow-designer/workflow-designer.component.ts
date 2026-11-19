@@ -109,7 +109,7 @@ export class WorkflowDesignerComponent {
   });
   protected readonly sites = computed(() => {
     const route = this.selectedRoute();
-    return route ? routeSites(route.vertices(), route.edge()?.waypoints ?? []) : [];
+    return route ? routeSites(route.vertices(), route.handles()) : [];
   });
   protected readonly choice = linkedSignal<string | null, number | null>({
     source: this.selectedConnectionId,
@@ -167,11 +167,12 @@ export class WorkflowDesignerComponent {
     const edge = this.selectedEdge();
     const site = this.preview();
     this.showSites.set(false);
-    if (!edge || !site) return;
-    const points = [...(edge.waypoints ?? [])];
+    const rendered = this.selectedRoute();
+    if (!edge || !site || !rendered) return;
+    const points = [...rendered.handles()];
     points.splice(site.insertAt, 0, site.position);
     this.choice.set(null);
-    const route = captureRoute(this.selectedRoute()!.vertices(), points);
+    const route = captureRoute(rendered.vertices(), points);
     this.graph.setWaypoints(edge.id, points, route);
     this.choosePoint(site.insertAt);
   }
