@@ -8,7 +8,17 @@ import {
   type RouteVertex,
 } from '../domain/workflow-graph';
 
+import { defaultWorkflow } from '../domain/workflow-definition';
+
 export const workflowStorageKey = 'process-studio.workflow';
+
+export function storageKeyForWorkflow(id: string): string {
+  return id === defaultWorkflow.id ? workflowStorageKey : `${workflowStorageKey}.${id}`;
+}
+
+export function removeSavedWorkflow(id: string): void {
+  localStorage.removeItem(storageKeyForWorkflow(id));
+}
 
 export interface WorkflowViewport {
   readonly position: WorkflowPosition;
@@ -143,10 +153,10 @@ function decode(value: unknown, steps: readonly WorkflowNode[]): RestoredWorkflo
   return { nodes: restoredNodes, connections: edges, viewport };
 }
 
-export function loadWorkflow(steps: readonly WorkflowNode[]): LoadResult {
+export function loadWorkflow(steps: readonly WorkflowNode[], storageKey: string): LoadResult {
   let raw: string | null;
   try {
-    raw = globalThis.localStorage.getItem(workflowStorageKey);
+    raw = globalThis.localStorage.getItem(storageKey);
   } catch {
     return { status: 'unavailable' };
   }
@@ -164,6 +174,7 @@ export function saveWorkflow(
   nodes: readonly WorkflowNode[],
   connections: readonly WorkflowConnection[],
   viewport: WorkflowViewport,
+  storageKey: string,
 ): boolean {
   const snapshot = {
     version: 2,
@@ -172,7 +183,7 @@ export function saveWorkflow(
     viewport,
   };
   try {
-    globalThis.localStorage.setItem(workflowStorageKey, JSON.stringify(snapshot));
+    globalThis.localStorage.setItem(storageKey, JSON.stringify(snapshot));
     return true;
   } catch {
     return false;

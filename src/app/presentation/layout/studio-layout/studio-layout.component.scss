@@ -1,0 +1,29 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  color: #203044;
+  --border: #dce4eb;
+  --space: clamp(1rem, 3vw, 2.75rem);
+}
+.workspace {
+  --menu-toggle-height: 2.5rem;
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+main {
+  flex: 1;
+  min-width: 0;
+  --workflow-page-gutter: var(--space);
+}
+/* The first heading clears the floating button while the canvas uses the full width. */
+app-studio-navigation.collapsed + main {
+  padding-block-start: max(0px, calc(var(--menu-toggle-height) + 0.25rem - var(--space)));
+}
+@media (max-width: 47.999rem) {
+  .workspace {
+    flex-direction: column;
+  }
+}

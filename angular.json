@@ -27,6 +27,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "LICENSE",
+                "input": "node_modules/@fontsource/material-icons",
+                "output": "licenses/material-icons"
               }
             ],
             "styles": ["node_modules/@foblex/flow/styles/default.scss", "src/styles.scss"]

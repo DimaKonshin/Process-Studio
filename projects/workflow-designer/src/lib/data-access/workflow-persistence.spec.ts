@@ -19,6 +19,34 @@ describe('saving a workflow', () => {
     return graph;
   }
 
+  it('saves changes to an example independently of the default graph and other processes', () => {
+    const original = savedGraph();
+    const previous = localStorage.getItem(workflowStorageKey);
+    const example = {
+      id: 'example',
+      title: 'Пример',
+      nodes: original.nodes(),
+      connections: original.connections(),
+    };
+    const custom = { id: 'custom', title: 'Новый', nodes: [], connections: [] };
+    try {
+      const edited = new WorkflowCanvasState(example);
+      edited.renameStep('review-request', 'Проверить смету');
+      edited.save(view);
+      expect(new WorkflowCanvasState(example).nodes()[1].title).toBe('Проверить смету');
+      expect(example.nodes[1].title).toBe('Проверить заявку');
+      const blank = new WorkflowCanvasState(custom);
+      expect(blank.nodes()).toEqual([]);
+      expect(blank.connections()).toEqual([]);
+      blank.save(view);
+      expect(new WorkflowCanvasState(custom).status()).toBe('restored');
+      expect(localStorage.getItem(workflowStorageKey)).toBe(previous);
+    } finally {
+      localStorage.removeItem(workflowStorageKey + '.example');
+      localStorage.removeItem(workflowStorageKey + '.custom');
+    }
+  });
+
   it('restores the last explicit save, including port IDs, connection ID and viewport', () => {
     const graph = savedGraph();
     const [edge] = graph.connections();

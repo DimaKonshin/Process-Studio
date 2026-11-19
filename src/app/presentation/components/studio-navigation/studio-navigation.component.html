@@ -1,0 +1,31 @@
+<button
+  #menuButton
+  type="button"
+  aria-controls="studio-navigation"
+  [attr.aria-expanded]="menuOpen()"
+  [attr.aria-label]="menuOpen() ? 'Свернуть меню' : 'Открыть меню'"
+  (click)="toggleMenu()"
+>
+  <span data-material-icon="menu" aria-hidden="true"></span>
+</button>
+<nav id="studio-navigation" aria-label="Основная навигация" [hidden]="!menuOpen()">
+  <a
+    routerLink="/"
+    routerLinkActive="current"
+    [routerLinkActiveOptions]="{ exact: true }"
+    ariaCurrentWhenActive="page"
+    (click)="closeMobileMenu()"
+  >
+    <span data-material-icon="home" aria-hidden="true"></span>
+    Главная
+  </a>
+  <a
+    routerLink="/workflow/editor"
+    routerLinkActive="current"
+    ariaCurrentWhenActive="page"
+    (click)="closeMobileMenu()"
+  >
+    <span data-material-icon="account_tree" aria-hidden="true"></span>
+    Редактор процессов
+  </a>
+</nav>

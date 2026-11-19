@@ -1,0 +1,184 @@
+.catalog {
+  padding: clamp(1rem, 4vw, 3rem) var(--space);
+  max-width: 64rem;
+}
+header,
+.actions,
+li,
+li a,
+button {
+  display: flex;
+  align-items: center;
+}
+header {
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+h1,
+h2,
+ul {
+  margin: 0;
+}
+ul {
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+li + li {
+  border-top: 1px solid var(--border);
+}
+li {
+  position: relative;
+  gap: 0.5rem;
+  padding: 0.875rem clamp(0.5rem, 2vw, 1.25rem);
+  min-height: 2.75rem;
+}
+li:first-child {
+  border-start-start-radius: inherit;
+  border-start-end-radius: inherit;
+}
+li:last-child {
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+}
+li:has(a:hover) {
+  background: #f4f8fb;
+}
+li a {
+  flex: 1;
+  min-width: 0;
+  gap: clamp(0.5rem, 2vw, 1rem);
+  color: inherit;
+  text-decoration: none;
+}
+// Extend the link to the whole row while keeping the delete action independently focusable.
+li a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0.65rem;
+}
+li a:focus-visible {
+  outline: none;
+}
+li a:focus-visible::after,
+.remove-process:focus-visible {
+  outline: 2px solid #27598c;
+  outline-offset: -2px;
+}
+.arrow {
+  pointer-events: none;
+}
+.empty {
+  color: #52677b;
+}
+.process-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background: #e9f1f7;
+  color: #27598c;
+}
+.name {
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.kind,
+.arrow {
+  color: #52677b;
+}
+.kind {
+  font-size: 0.875rem;
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #b8c7d8;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #254662;
+  cursor: pointer;
+}
+.primary {
+  background: #27598c;
+  border-color: #27598c;
+  color: #fff;
+  font-weight: 600;
+}
+.primary:hover {
+  background: #204a76;
+}
+.remove-process {
+  position: relative;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: #52677b;
+}
+.remove-process:hover,
+.remove-process:focus-visible {
+  background: #f9ecea;
+  color: #9a342e;
+}
+.danger {
+  background: #9a342e;
+  border-color: #9a342e;
+  color: #fff;
+  font-weight: 600;
+}
+.danger:hover {
+  background: #802c27;
+}
+dialog {
+  width: min(23rem, calc(100% - 3rem));
+  box-sizing: border-box;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  color: inherit;
+}
+dialog::backdrop {
+  background: rgb(28 44 59 / 35%);
+}
+form {
+  display: grid;
+  gap: 0.75rem;
+}
+h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.35rem;
+}
+input {
+  border: 1px solid #879ab0;
+  border-radius: 0.4rem;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+}
+p {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: #52677b;
+  font-size: 0.875rem;
+}
+[role='alert'] {
+  color: #9a342e;
+}
+.actions {
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

@@ -177,7 +177,7 @@ f-connection.f-selected {
 .designer {
   --drawer-width: min(20rem, 88vw);
   --page-padding: clamp(1rem, 4vw, 3rem);
-  --gutter: max(var(--page-padding), calc((100% - 76rem) / 2));
+  --gutter: var(--workflow-page-gutter, max(var(--page-padding), calc((100% - 76rem) / 2)));
   box-sizing: border-box;
   padding: var(--page-padding) var(--gutter);
 }

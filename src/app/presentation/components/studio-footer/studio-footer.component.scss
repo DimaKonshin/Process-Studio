@@ -1,0 +1,11 @@
+:host {
+  padding: 0.85rem 1.5rem;
+  border-top: 1px solid var(--border);
+  color: #526479;
+  font-size: 0.8rem;
+}
+@media (max-width: 47.999rem) {
+  :host {
+    padding-inline: 1rem;
+  }
+}

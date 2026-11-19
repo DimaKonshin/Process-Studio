@@ -1,0 +1,69 @@
+<section class="catalog" aria-labelledby="catalog-title">
+  <header>
+    <h1 id="catalog-title">Редактор процессов</h1>
+    <button #createButton class="primary" type="button" (click)="openDialog(processName)">
+      <span data-material-icon="add" aria-hidden="true"></span>Создать процесс
+    </button>
+  </header>
+
+  <ul aria-label="Процессы">
+    @for (process of processes(); track process.id) {
+      <li>
+        <a #processLink [routerLink]="['/workflow/editor', process.id]">
+          <span class="process-icon" data-material-icon="account_tree" aria-hidden="true"></span>
+          <span class="name">{{ process.title }}</span>
+          @if (examples.includes(process.id)) {
+            <span class="kind">Демо</span>
+          }
+        </a>
+        <button
+          class="remove-process"
+          type="button"
+          [attr.aria-label]="'Удалить процесс «' + process.title + '»'"
+          title="Удалить процесс"
+          (click)="askToRemove(process)"
+        >
+          <span data-material-icon="delete_outline" aria-hidden="true"></span>
+        </button>
+        <span class="arrow" data-material-icon="chevron_right" aria-hidden="true"></span>
+      </li>
+    } @empty {
+      <li class="empty">Пока нет процессов.</li>
+    }
+  </ul>
+</section>
+<dialog #createDialog aria-labelledby="create-title">
+  <form (submit)="$event.preventDefault(); create(processName.value)">
+    <h2 id="create-title">Новый процесс</h2>
+    <label for="process-name">Название процесса</label>
+    <input #processName id="process-name" type="text" required autocomplete="off" />
+    <p>Процесс сохранится в этом браузере.</p>
+    @if (error()) {
+      <p role="alert">{{ error() }}</p>
+    }
+    <div class="actions">
+      <button type="button" (click)="createDialog.close()">Отмена</button>
+      <button type="submit" class="primary">Создать</button>
+    </div>
+  </form>
+</dialog>
+<dialog
+  #removeDialog
+  aria-labelledby="remove-title"
+  aria-describedby="remove-description"
+  (close)="pendingRemoval.set(null)"
+>
+  <form (submit)="$event.preventDefault(); remove()">
+    <h2 id="remove-title">Удалить процесс?</h2>
+    <p id="remove-description">
+      Процесс «{{ pendingRemoval()?.title }}» и его схема будут удалены из этого браузера.
+    </p>
+    @if (error()) {
+      <p role="alert">{{ error() }}</p>
+    }
+    <div class="actions">
+      <button type="button" autofocus (click)="removeDialog.close()">Отмена</button>
+      <button type="submit" class="danger">Удалить</button>
+    </div>
+  </form>
+</dialog>

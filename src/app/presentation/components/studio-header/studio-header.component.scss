@@ -1,0 +1,23 @@
+@use '../navigation-controls';
+
+:host {
+  display: flex;
+  align-items: center;
+  min-height: 3.75rem;
+  padding-inline: 1.125rem;
+  border-bottom: 1px solid var(--border);
+  background: white;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 1.18rem;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+@media (max-width: 47.999rem) {
+  :host {
+    padding-inline: 0.625rem;
+  }
+}
