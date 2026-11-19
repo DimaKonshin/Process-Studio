@@ -10,7 +10,11 @@ const routes: Routes = [
     component: WorkflowLayoutComponent,
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'editor' },
-      { path: 'editor', component: WorkflowEditorPageComponent },
+      {
+        path: 'editor',
+        title: 'Редактор процессов · Process Studio',
+        component: WorkflowEditorPageComponent,
+      },
     ],
   },
 ];

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="344" height="160" viewBox="0 0 344 160" fill="none">
+  <g stroke="#4F7497" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M60 80h32m-5-4 5 4-5 4M211 80h12V43h16m-5-4 5 4-5 4M223 80v37h16m-5-4 5 4-5 4"/>
+  </g>
+  <g stroke-width="1.4">
+    <rect x="4" y="63" width="56" height="34" rx="15" fill="#E3F5EF" stroke="#86AA9E"/>
+    <rect x="93" y="56" width="118" height="48" rx="8" fill="white" stroke="#93ADC4"/>
+    <rect x="240" y="26" width="98" height="34" rx="7" fill="white" stroke="#8CAE9F"/>
+    <rect x="240" y="100" width="98" height="34" rx="7" fill="white" stroke="#C7A791"/>
+  </g>
+  <g text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" fill="#28435A">
+    <text x="32" y="79">Старт</text><text x="152" y="79">Согласование</text><text x="289" y="42">Принято</text><text x="289" y="116">Доработка</text>
+  </g>
+</svg>
