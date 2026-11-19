@@ -13,7 +13,7 @@ describe('Workflow editor routing', () => {
     );
   });
 
-  it.each(['/workflow', '/workflow/editor'])('opens the editor from %s', async (url) => {
+  it.each(['/workflow', '/workflow/editor'])('opens the process list from %s', async (url) => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
 
@@ -24,10 +24,31 @@ describe('Workflow editor routing', () => {
     expect(router.url).toBe('/workflow/editor');
     const layout = fixture.nativeElement.querySelector('app-workflow-layout');
     expect(layout?.querySelector('h1')?.textContent).toBe('Редактор процессов');
-    expect(layout?.querySelector('wf-workflow-designer')).toBeTruthy();
+    expect(layout?.querySelector('wf-workflow-designer')).toBeNull();
+    expect(layout?.querySelectorAll('li a')).toHaveLength(3);
     expect(
       fixture.nativeElement.querySelector('nav [aria-current="page"]')?.textContent.trim(),
     ).toBe('Редактор процессов');
+  });
+
+  it('opens both demo URLs, then returns to the list using the breadcrumb', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const router = TestBed.inject(Router);
+    for (const [id, title] of [
+      ['expenses', 'Заявка на затраты'],
+      ['leave', 'Заявка на отпуск'],
+    ]) {
+      await router.navigateByUrl('/workflow/editor/' + id);
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('main h1').textContent).toBe(title);
+    }
+    fixture.nativeElement.querySelector('main nav a').click();
+    await fixture.whenStable();
+    expect(router.url).toBe('/workflow/editor');
+    await router.navigateByUrl('/workflow/editor/missing-process');
+    await fixture.whenStable();
+    expect(router.url).toBe('/workflow/editor');
   });
 
   it('navigates between home and the editor inside the same layout', async () => {

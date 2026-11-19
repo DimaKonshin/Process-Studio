@@ -1,4 +1,4 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 
 import {
   canConnect,
@@ -11,29 +11,39 @@ import {
   type RouteVertex,
 } from '../domain/workflow-graph';
 
-import { loadWorkflow, saveWorkflow, type WorkflowViewport } from './workflow-storage';
+import { defaultWorkflow, type WorkflowDefinition } from '../domain/workflow-definition';
+import {
+  loadWorkflow,
+  saveWorkflow,
+  storageKeyForWorkflow,
+  type WorkflowViewport,
+} from './workflow-storage';
 
 type SaveStatus = ReturnType<typeof loadWorkflow>['status'] | 'modified' | 'saved' | 'save-error';
 
-const initialNodes: readonly WorkflowNode[] = [
-  createWorkflowNode('request-created', 'start', 'Заявка создана', { x: 0, y: 0 }),
-  createWorkflowNode('review-request', 'task', 'Проверить заявку', { x: 350, y: 76 }),
-];
-
-@Injectable()
 export class WorkflowCanvasState {
-  private readonly initial = loadWorkflow(initialNodes);
-  private readonly restored = this.initial.status === 'restored' ? this.initial.graph : undefined;
-  private readonly nodeList = signal(this.restored?.nodes ?? initialNodes);
-  private readonly connectionList = signal<readonly WorkflowConnection[]>(
-    this.restored?.connections ?? [],
-  );
-  private readonly saveStatus = signal<SaveStatus>(this.initial.status);
+  private readonly nodeList;
+  private readonly connectionList;
+  private readonly saveStatus;
+  private readonly storageKey: string;
+  readonly initialViewport?: WorkflowViewport;
 
-  readonly initialViewport = this.restored?.viewport;
-  readonly status = this.saveStatus.asReadonly();
-  readonly nodes = this.nodeList.asReadonly();
-  readonly connections = this.connectionList.asReadonly();
+  readonly nodes;
+  readonly connections;
+  readonly status;
+
+  constructor(definition: WorkflowDefinition = defaultWorkflow) {
+    this.storageKey = storageKeyForWorkflow(definition.id);
+    const loaded = loadWorkflow(definition.nodes, this.storageKey);
+    const saved = loaded.status === 'restored' ? loaded.graph : undefined;
+    this.nodeList = signal(saved?.nodes ?? definition.nodes);
+    this.connectionList = signal(saved?.connections ?? definition.connections);
+    this.saveStatus = signal<SaveStatus>(loaded.status);
+    this.nodes = this.nodeList.asReadonly();
+    this.connections = this.connectionList.asReadonly();
+    this.status = this.saveStatus.asReadonly();
+    this.initialViewport = saved?.viewport;
+  }
 
   readonly availableStepKinds = computed<readonly WorkflowStepKind[]>(() =>
     this.nodes().some((node) => node.kind === 'start')
@@ -124,7 +134,7 @@ export class WorkflowCanvasState {
   }
 
   save(viewport: WorkflowViewport): void {
-    const saved = saveWorkflow(this.nodes(), this.connections(), viewport);
+    const saved = saveWorkflow(this.nodes(), this.connections(), viewport, this.storageKey);
     this.saveStatus.set(saved ? 'saved' : 'save-error');
   }
 }

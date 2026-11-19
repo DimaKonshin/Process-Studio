@@ -17,7 +17,7 @@
       <label>
         Тип шага
         <select #stepKind>
-          @for (kind of graph.availableStepKinds(); track kind) {
+          @for (kind of graph().availableStepKinds(); track kind) {
             <option [value]="kind">{{ kindLabels[kind] }}</option>
           }
         </select>
@@ -29,7 +29,7 @@
       <button type="submit">Добавить шаг</button>
     </form>
     <button type="button" (click)="save(canvas)">Сохранить</button>
-    <span role="status">{{ messages[graph.status()] }}</span>
+    <span role="status">{{ messages[graph().status()] }}</span>
   </div>
   <div class="editor-workspace">
     <f-flow
@@ -40,9 +40,9 @@
       (fSelectionChange)="onSelectionChange($event)"
       (fDeleteSelected)="deleteSelection(surface)"
       (fFullRendered)="openCanvas(canvas)"
-      (fMoveNodes)="graph.moveNodes($event.nodes)"
+      (fMoveNodes)="graph().moveNodes($event.nodes)"
       (fConnectionWaypointsChanged)="updateRoutePoints($event.connectionId, $event.waypoints)"
-      (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"
+      (fCreateConnection)="graph().connect($event.sourceId, $event.targetId)"
     >
       <f-canvas
         #canvas
@@ -50,11 +50,11 @@
         [fZoomMinimum]="limits.min"
         [fZoomMaximum]="limits.max"
         (fCanvasChange)="scale.set($event.scale)"
-        [position]="graph.initialViewport?.position"
-        [scale]="graph.initialViewport?.scale ?? 1"
+        [position]="graph().initialViewport?.position"
+        [scale]="graph().initialViewport?.scale ?? 1"
       >
         <f-connection-for-create fType="segment" [fRadius]="0" />
-        @for (edge of graph.connections(); track edge.id) {
+        @for (edge of graph().connections(); track edge.id) {
           <f-connection
             [fConnectionId]="edge.id"
             [fSourceId]="edge.sourceId"
@@ -94,7 +94,7 @@
             <circle [attr.cx]="site.position.x" [attr.cy]="site.position.y" r="5" />
           }
         </svg>
-        @for (node of graph.nodes(); track node.id) {
+        @for (node of graph().nodes(); track node.id) {
           <div
             class="step"
             [attr.data-step-id]="node.id"
@@ -146,7 +146,7 @@
     <wf-step-properties
       [step]="step"
       [kindLabel]="kindLabels[step.kind]"
-      (rename)="graph.renameStep($event.id, $event.title)"
+      (rename)="graph().renameStep($event.id, $event.title)"
       (remove)="removeSelectedStep(surface)"
       (dismiss)="dismissProperties(surface)"
     />

@@ -5,6 +5,7 @@ import {
   computed,
   ElementRef,
   inject,
+  input,
   Injector,
   linkedSignal,
   signal,
@@ -23,6 +24,7 @@ import {
 
 import { WorkflowCanvasState } from '../../data-access/workflow-canvas-state';
 
+import { defaultWorkflow, type WorkflowDefinition } from '../../domain/workflow-definition';
 import { type ApprovalOutcome, type WorkflowStepKind } from '../../domain/workflow-graph';
 
 import { captureRoute, nearestRouteSite, routeSites } from '../../domain/route-sites';
@@ -43,7 +45,7 @@ import { WaypointHandlesPipe } from './waypoint-handles.pipe';
     ConnectionRouteDirective,
   ],
   host: { '(document:keydown.escape)': 'expanded.set(false)' },
-  providers: [WorkflowCanvasState, provideFFlow(withA11y())],
+  providers: [provideFFlow(withA11y())],
   templateUrl: './workflow-designer.component.html',
   styleUrl: './workflow-designer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,10 +80,13 @@ export class WorkflowDesignerComponent {
     saved: 'Схема сохранена в этом браузере.',
     'save-error': 'Не удалось сохранить схему в этом браузере. Можно попробовать ещё раз.',
   };
-  protected readonly graph = inject(WorkflowCanvasState);
+  readonly definition = input<WorkflowDefinition>(defaultWorkflow);
+  protected readonly graph = computed(() => new WorkflowCanvasState(this.definition()));
   private readonly selectedNodeId = signal<string | null>(null);
   protected readonly selectedStep = computed(() =>
-    this.graph.nodes().find((node) => node.id === this.selectedNodeId()),
+    this.graph()
+      .nodes()
+      .find((node) => node.id === this.selectedNodeId()),
   );
   protected readonly selectedConnectionId = signal<string | null>(null);
 
@@ -90,15 +95,19 @@ export class WorkflowDesignerComponent {
     this.renderedEdges().find((item) => item.edge()?.id === this.selectedConnectionId()),
   );
   protected readonly selectedEdge = computed(() =>
-    this.graph.connections().find((edge) => edge.id === this.selectedConnectionId()),
+    this.graph()
+      .connections()
+      .find((edge) => edge.id === this.selectedConnectionId()),
   );
   protected readonly endpoints = computed(() => {
     const edge = this.selectedEdge();
     if (!edge) return;
-    const source = this.graph
+    const source = this.graph()
       .nodes()
       .find((node) => node.outputs.some((port) => port.id === edge.sourceId));
-    const target = this.graph.nodes().find((node) => node.inputId === edge.targetId);
+    const target = this.graph()
+      .nodes()
+      .find((node) => node.inputId === edge.targetId);
     const outcome = source?.outputs.find((port) => port.id === edge.sourceId)?.outcome;
     return {
       source: outcome
@@ -173,7 +182,7 @@ export class WorkflowDesignerComponent {
     points.splice(site.insertAt, 0, site.position);
     this.choice.set(null);
     const route = captureRoute(rendered.vertices(), points);
-    this.graph.setWaypoints(edge.id, points, route);
+    this.graph().setWaypoints(edge.id, points, route);
     this.choosePoint(site.insertAt);
   }
 
@@ -184,7 +193,7 @@ export class WorkflowDesignerComponent {
     if (!renderer) return;
     if (points.length !== renderer.edge()?.waypoints?.length) this.pointIndex.set(null);
     const edit = renderer.finish(points);
-    this.graph.setWaypoints(id, edit.points, edit.route);
+    this.graph().setWaypoints(id, edit.points, edit.route);
   }
 
   protected removePoint(): void {
@@ -212,7 +221,7 @@ export class WorkflowDesignerComponent {
     if (id === null) return;
     flow.clearSelection();
     this.selectedConnectionId.set(null);
-    this.graph.removeConnection(id);
+    this.graph().removeConnection(id);
   }
 
   protected dismissProperties(flow: FFlowComponent): void {
@@ -226,30 +235,32 @@ export class WorkflowDesignerComponent {
     const step = this.selectedStep();
     if (!step) return;
     this.dismissProperties(flow);
-    this.graph.removeStep(step.id);
+    this.graph().removeStep(step.id);
   }
 
   protected openCanvas(canvas: FCanvasComponent): void {
     if (this.viewportInitialized) return;
     this.viewportInitialized = true;
     const { clientWidth, clientHeight } = this.surface().nativeElement;
-    const view = this.graph.initialViewport;
+    const view = this.graph().initialViewport;
     // Closing the drawer or leaving expanded mode changes the canvas size on reload.
     const sameWindow =
       view?.windowSize?.width === window.innerWidth &&
       view.windowSize.height === window.innerHeight;
     const sameCanvas = view?.width === clientWidth && view.height === clientHeight;
-    if (this.graph.nodes().length && !sameCanvas && !sameWindow) {
+    if (this.graph().nodes().length && !sameCanvas && !sameWindow) {
       canvas.fitToScreen({ x: 32, y: 32 }, false, true, 1);
     }
     this.scale.set(canvas.getScale());
   }
 
   protected addStep(value: string, input: HTMLInputElement, flow: FFlowComponent): void {
-    const kind = this.graph.availableStepKinds().find((item) => item === value);
+    const kind = this.graph()
+      .availableStepKinds()
+      .find((item) => item === value);
     if (!kind) return;
     const bounds = this.surface().nativeElement.getBoundingClientRect();
-    const id = this.graph.addStep(
+    const id = this.graph().addStep(
       kind,
       input.value,
       flow.getPositionInFlow({ x: bounds.left + 16, y: bounds.top + 16 }),
@@ -271,7 +282,7 @@ export class WorkflowDesignerComponent {
           added.getBoundingClientRect(),
           others,
         );
-        this.graph.moveNodes([{ id, position: flow.getPositionInFlow(point) }]);
+        this.graph().moveNodes([{ id, position: flow.getPositionInFlow(point) }]);
       },
       { injector: this.injector },
     );
@@ -314,7 +325,7 @@ export class WorkflowDesignerComponent {
   protected save(canvas: FCanvasComponent): void {
     const { clientWidth, clientHeight } = this.surface().nativeElement;
     const { x, y } = canvas.getPosition();
-    this.graph.save({
+    this.graph().save({
       position: { x, y },
       scale: canvas.getScale(),
       width: clientWidth,
