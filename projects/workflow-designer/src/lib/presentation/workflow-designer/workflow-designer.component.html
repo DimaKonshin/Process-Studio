@@ -1,7 +1,13 @@
-<section aria-label="Рабочая область схемы">
+<section
+  class="designer"
+  aria-label="Рабочая область схемы"
+  [class.with-properties]="selectedStep() || selectedEdge()"
+  [class.expanded]="expanded()"
+>
+  <ng-content />
   <p class="hint">
-    Потяните от выхода одного шага ко входу другого, чтобы провести стрелку. Чтобы удалить стрелку,
-    нажмите на линию и выберите «Удалить связь» или нажмите Delete.
+    Нажмите на шаг или стрелку, чтобы открыть свойства. Чтобы провести стрелку, потяните от выхода
+    одного шага ко входу другого.
   </p>
   <div class="editor-toolbar">
     <form
@@ -11,7 +17,7 @@
       <label>
         Тип шага
         <select #stepKind>
-          @for (kind of kinds; track kind) {
+          @for (kind of graph.availableStepKinds(); track kind) {
             <option [value]="kind">{{ kindLabels[kind] }}</option>
           }
         </select>
@@ -22,82 +28,144 @@
       </label>
       <button type="submit">Добавить шаг</button>
     </form>
-    <button
-      type="button"
-      class="remove-connection"
-      [disabled]="selectedConnectionId() === null"
-      (click)="removeSelectedConnection(surface)"
-    >
-      Удалить связь
-    </button>
     <button type="button" (click)="save(canvas)">Сохранить</button>
     <span role="status">{{ messages[graph.status()] }}</span>
   </div>
-  <f-flow
-    #surface
-    aria-label="Схема процесса"
-    fDraggable
-    (fSelectionChange)="onSelectionChange($event)"
-    (fDeleteSelected)="removeSelectedConnection(surface)"
-    (fFullRendered)="openCanvas(canvas)"
-    (fMoveNodes)="graph.moveNodes($event.nodes)"
-    (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"
-  >
-    <f-canvas
-      #canvas
-      [position]="graph.initialViewport?.position"
-      [scale]="graph.initialViewport?.scale ?? 1"
+  <div class="editor-workspace">
+    <f-flow
+      #surface
+      aria-label="Схема процесса"
+      fDraggable
+      [fConnectionWaypointsTrigger]="dragExistingPoint"
+      (fSelectionChange)="onSelectionChange($event)"
+      (fDeleteSelected)="deleteSelection(surface)"
+      (fFullRendered)="openCanvas(canvas)"
+      (fMoveNodes)="graph.moveNodes($event.nodes)"
+      (fConnectionWaypointsChanged)="updateRoutePoints($event.connectionId, $event.waypoints)"
+      (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"
     >
-      <f-connection-for-create fType="bezier" />
-      @for (edge of graph.connections(); track edge.id) {
-        <f-connection
-          [fConnectionId]="edge.id"
-          [fSourceId]="edge.sourceId"
-          [fTargetId]="edge.targetId"
-          fType="bezier"
-          [fReassignDisabled]="true"
-        >
-          <f-connection-marker-arrow />
-        </f-connection>
-      }
-      @for (node of graph.nodes(); track node.id) {
-        <div
-          class="step"
-          [attr.data-step-id]="node.id"
-          fNode
-          fDragHandle
-          [fNodeId]="node.id"
-          [fNodePosition]="node.position"
-        >
-          <span class="step-kind" [attr.data-kind]="node.kind">{{ kindLabels[node.kind] }}</span>
-          <strong>{{ node.title }}</strong>
-          @if (node.inputId; as inputId) {
-            <span
-              class="port left"
-              fConnector
-              fConnectorType="target"
-              [fConnectorId]="inputId"
-              fConnectorConnectableSide="left"
-              title="Вход"
-            ></span>
+      <f-canvas
+        #canvas
+        fZoom
+        [fZoomMinimum]="limits.min"
+        [fZoomMaximum]="limits.max"
+        (fCanvasChange)="scale.set($event.scale)"
+        [position]="graph.initialViewport?.position"
+        [scale]="graph.initialViewport?.scale ?? 1"
+      >
+        <f-connection-for-create fType="segment" [fRadius]="0" />
+        @for (edge of graph.connections(); track edge.id) {
+          <f-connection
+            [fConnectionId]="edge.id"
+            [fSourceId]="edge.sourceId"
+            [fTargetId]="edge.targetId"
+            fType="workflow-route"
+            [wfRoute]="edge"
+            (selectHandle)="choosePoint($event)"
+            [fRadius]="0"
+            [fReassignDisabled]="true"
+            (click)="chooseSite($event, edge.id, surface)"
+          >
+            <f-connection-marker-arrow />
+            <f-connection-waypoints
+              [waypoints]="edge.waypoints | waypointHandles"
+              [visibility]="selectedConnectionId() === edge.id"
+              [radius]="6"
+            />
+          </f-connection>
+        }
+        <svg ngProjectAs="[fNodes]" class="route-preview" aria-hidden="true">
+          @if (activePoint(); as point) {
+            <circle class="selected-point" [attr.cx]="point.x" [attr.cy]="point.y" r="9" />
           }
-          @for (port of node.outputs; track port.id) {
-            <div class="output" [class.outcome]="port.outcome" [attr.data-outcome]="port.outcome">
-              @if (port.outcome; as outcome) {
-                <span class="outcome-label">{{ outcomeLabels[outcome] }}</span>
+          @if (showSites()) {
+            @for (candidate of sites(); track $index) {
+              @if ($index !== siteIndex()) {
+                <circle
+                  class="guide"
+                  [attr.cx]="candidate.position.x"
+                  [attr.cy]="candidate.position.y"
+                  r="4"
+                />
               }
-              <span
-                class="port right"
-                fConnector
-                fConnectorType="source"
-                [fConnectorId]="port.id"
-                fConnectorConnectableSide="right"
-                [title]="port.outcome ? outcomeLabels[port.outcome] : 'Выход'"
-              ></span>
-            </div>
+            }
           }
-        </div>
-      }
-    </f-canvas>
-  </f-flow>
+          @if (preview(); as site) {
+            <circle [attr.cx]="site.position.x" [attr.cy]="site.position.y" r="5" />
+          }
+        </svg>
+        @for (node of graph.nodes(); track node.id) {
+          <div
+            class="step"
+            [attr.data-step-id]="node.id"
+            fNode
+            fDragHandle
+            [fNodeId]="node.id"
+            [fNodePosition]="node.position"
+          >
+            <span class="step-kind" [attr.data-kind]="node.kind">{{ kindLabels[node.kind] }}</span>
+            <strong>{{ node.title }}</strong>
+            @if (node.inputId; as inputId) {
+              <span
+                class="port left"
+                fConnector
+                fConnectorType="target"
+                [fConnectorId]="inputId"
+                fConnectorConnectableSide="left"
+                title="Вход"
+              ></span>
+            }
+            @for (port of node.outputs; track port.id) {
+              <div class="output" [class.outcome]="port.outcome" [attr.data-outcome]="port.outcome">
+                @if (port.outcome; as outcome) {
+                  <span class="outcome-label">{{ outcomeLabels[outcome] }}</span>
+                }
+                <span
+                  class="port right"
+                  fConnector
+                  fConnectorType="source"
+                  [fConnectorId]="port.id"
+                  fConnectorConnectableSide="right"
+                  [title]="port.outcome ? outcomeLabels[port.outcome] : 'Выход'"
+                ></span>
+              </div>
+            }
+          </div>
+        }
+      </f-canvas>
+    </f-flow>
+    <wf-canvas-controls
+      [scale]="scale()"
+      [expanded]="expanded()"
+      (zoomIn)="zoom().zoomIn()"
+      (zoomOut)="zoom().zoomOut()"
+      (toggleExpanded)="expanded.set(!expanded())"
+    />
+  </div>
+  @if (selectedStep(); as step) {
+    <wf-step-properties
+      [step]="step"
+      [kindLabel]="kindLabels[step.kind]"
+      (rename)="graph.renameStep($event.id, $event.title)"
+      (remove)="removeSelectedStep(surface)"
+      (dismiss)="dismissProperties(surface)"
+    />
+  } @else if (endpoints(); as ends) {
+    <wf-connection-properties
+      [source]="ends.source"
+      [target]="ends.target"
+      [sites]="sites()"
+      [selectedIndex]="siteIndex()"
+      [points]="selectedEdge()?.waypoints ?? []"
+      [pointIndex]="pointIndex()"
+      (choosePoint)="choosePoint($event)"
+      (removePoint)="removePoint()"
+      [showSites]="showSites()"
+      (toggleSites)="showSites.set(!showSites())"
+      (choose)="chooseIndex($event)"
+      (add)="addRoutePoint()"
+      (remove)="removeSelectedConnection(surface)"
+      (dismiss)="dismissProperties(surface)"
+    />
+  }
 </section>

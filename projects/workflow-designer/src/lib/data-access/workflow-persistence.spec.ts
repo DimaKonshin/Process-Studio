@@ -33,6 +33,115 @@ describe('saving a workflow', () => {
     expect(restored.initialViewport).toEqual(view);
   });
 
+  it('restores ordered route points and fixed port IDs after editing a return connection', () => {
+    const graph = savedGraph();
+    const approval = graph.addStep('approval', 'Решение', position)!;
+    graph.connect(`${approval}:rejected`, 'review-request:in');
+    const [other, edge] = graph.connections();
+    const route = [
+      { x: 650, y: 95 },
+      { x: 610, y: 270 },
+      { x: -80, y: 270 },
+    ];
+    graph.setWaypoints(edge.id, route);
+    graph.save(view);
+    route[1] = { x: 520, y: 310 };
+    expect(graph.connections()[1].waypoints![1]).toEqual({ x: 610, y: 270 });
+    graph.setWaypoints(edge.id, route);
+    expect(graph.status()).toBe('modified');
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.connections()).toEqual([other, { ...edge, waypoints: route }]);
+    restored.setWaypoints(edge.id, route);
+    expect(restored.status()).toBe('restored');
+    restored.setWaypoints(edge.id, []);
+    restored.save(view);
+    expect(new WorkflowCanvasState().connections()).toEqual([other, { ...edge, waypoints: [] }]);
+  });
+
+  it('retains fixed bends and restores the connection from waypoints if its bend data is damaged', () => {
+    const graph = savedGraph();
+    const id = graph.connections()[0].id;
+    const route = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0, control: true as const },
+      { x: 20, y: 0 },
+    ];
+    graph.setWaypoints(id, [{ x: 10, y: 15 }], route);
+    graph.save(view);
+    expect(new WorkflowCanvasState().connections()[0].route).toEqual(route);
+    const data = JSON.parse(localStorage.getItem(workflowStorageKey)!);
+    data.connections[0].route[1].x = null;
+    localStorage.setItem(workflowStorageKey, JSON.stringify(data));
+    const restored = new WorkflowCanvasState();
+    expect(restored.status()).toBe('restored');
+    expect(restored.connections()[0].route).toBeUndefined();
+    expect(restored.connections()[0].waypoints).toEqual([{ x: 10, y: 15 }]);
+  });
+
+  it('restores the window dimensions used to retain zoom when the drawer closes', () => {
+    const graph = new WorkflowCanvasState();
+    const viewport = { ...view, windowSize: { width: 1280, height: 800 } };
+    graph.save(viewport);
+    expect(new WorkflowCanvasState().initialViewport).toEqual(viewport);
+  });
+
+  it('renames a step and persists the remaining approval branch after one finish is removed', () => {
+    const graph = savedGraph();
+    const approval = graph.addStep('approval', 'Решение', position)!;
+    const yes = graph.addStep('finish', 'Оплачено', position)!;
+    const no = graph.addStep('finish', 'Отклонено', position)!;
+    graph.connect('review-request:out', `${approval}:in`);
+    graph.connect(`${approval}:approved`, `${yes}:in`);
+    graph.connect(`${approval}:rejected`, `${no}:in`);
+    const review = graph.nodes().find((step) => step.id === 'review-request')!;
+    const originalEdges = graph.connections();
+    graph.save(view);
+    graph.renameStep(review.id, '  Проверить бюджет  ');
+    expect(graph.nodes().find((step) => step.id === review.id)).toEqual({
+      ...review,
+      title: 'Проверить бюджет',
+    });
+    expect(graph.connections()).toBe(originalEdges);
+    expect(graph.status()).toBe('modified');
+    graph.removeStep(no);
+    expect(graph.connections()).toEqual(originalEdges.slice(0, 3));
+    expect(new WorkflowCanvasState().nodes()).toHaveLength(5);
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.nodes()).toEqual(graph.nodes());
+    expect(restored.nodes().some((step) => step.id === no)).toBe(false);
+    expect(restored.connections()).toEqual(originalEdges.slice(0, 3));
+
+    restored.removeStep(approval);
+    expect(restored.connections()).toEqual([originalEdges[0]]);
+    expect(restored.nodes().some((step) => step.id === yes)).toBe(true);
+  });
+
+  it('ignores blank names, unchanged names and stale step IDs', () => {
+    const graph = savedGraph();
+    const nodes = graph.nodes();
+    graph.renameStep(nodes[0].id, '  ');
+    graph.renameStep(nodes[0].id, nodes[0].title);
+    graph.renameStep('missing', 'Название');
+    graph.removeStep('missing');
+    expect(graph.nodes()).toBe(nodes);
+    expect(graph.status()).toBe('saved');
+  });
+
+  it('restores a deliberately empty canvas and can add a new start', () => {
+    const graph = savedGraph();
+    for (const node of graph.nodes()) graph.removeStep(node.id);
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.status()).toBe('restored');
+    expect(restored.nodes()).toEqual([]);
+    expect(restored.connections()).toEqual([]);
+    expect(restored.availableStepKinds()).toContain('start');
+    expect(restored.addStep('start', 'Новая заявка', position)).toBeTruthy();
+    expect(restored.availableStepKinds()).not.toContain('start');
+  });
+
   it('deletes one saved branch and can reconnect its ports', () => {
     const graph = new WorkflowCanvasState();
     const gate = graph.addStep('approval', 'Решение', position);
@@ -128,22 +237,26 @@ describe('saving a workflow', () => {
     expect(localStorage.getItem(workflowStorageKey)).toBe(raw);
   });
 
-  it.each(['unknown port', 'duplicate node', 'invalid coordinate', 'duplicate edge'])(
-    'rejects the whole save on %s',
-    (damage) => {
-      savedGraph();
-      const snapshot = JSON.parse(localStorage.getItem(workflowStorageKey)!);
-      if (damage === 'unknown port') snapshot.connections[0].targetId = 'missing';
-      if (damage === 'duplicate node') snapshot.nodes[1].id = snapshot.nodes[0].id;
-      if (damage === 'invalid coordinate') snapshot.nodes[0].position.x = null;
-      if (damage === 'duplicate edge') snapshot.connections.push(snapshot.connections[0]);
-      localStorage.setItem(workflowStorageKey, JSON.stringify(snapshot));
+  it.each([
+    'unknown port',
+    'duplicate node',
+    'invalid coordinate',
+    'duplicate edge',
+    'invalid waypoint',
+  ])('rejects the whole save on %s', (damage) => {
+    savedGraph();
+    const snapshot = JSON.parse(localStorage.getItem(workflowStorageKey)!);
+    if (damage === 'invalid waypoint') snapshot.connections[0].waypoints = [{ x: 0, y: null }];
+    if (damage === 'unknown port') snapshot.connections[0].targetId = 'missing';
+    if (damage === 'duplicate node') snapshot.nodes[1].id = snapshot.nodes[0].id;
+    if (damage === 'invalid coordinate') snapshot.nodes[0].position.x = null;
+    if (damage === 'duplicate edge') snapshot.connections.push(snapshot.connections[0]);
+    localStorage.setItem(workflowStorageKey, JSON.stringify(snapshot));
 
-      const graph = new WorkflowCanvasState();
-      expect(graph.status()).toBe('invalid');
-      expect(graph.connections()).toEqual([]);
-    },
-  );
+    const graph = new WorkflowCanvasState();
+    expect(graph.status()).toBe('invalid');
+    expect(graph.connections()).toEqual([]);
+  });
 
   it('keeps live edits and the previous save after a failed write, and can retry', () => {
     const graph = savedGraph();

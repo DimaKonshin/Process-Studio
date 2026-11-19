@@ -147,22 +147,75 @@ f-flow {
   }
 }
 
-.editor-toolbar .remove-connection {
-  border: 1px solid currentColor;
-  background: white;
-  color: #943b2e;
-
-  &:hover:enabled {
-    background: #fff1ed;
-  }
-  &:disabled {
-    background: #f3f5f7;
-    border-color: #c7d0db;
-    color: #667384;
-    cursor: default;
+.route-preview {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+  fill: white;
+  stroke: #285d91;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  .selected-point {
+    fill: none;
+    stroke: #184e86;
+    stroke-width: 2;
+    stroke-dasharray: none;
   }
 }
 
 f-connection.f-selected {
   --ff-connection-width: 4px;
+}
+
+.editor-workspace {
+  position: relative;
+}
+
+.designer {
+  --drawer-width: min(20rem, 88vw);
+  --page-padding: clamp(1rem, 4vw, 3rem);
+  --gutter: max(var(--page-padding), calc((100% - 76rem) / 2));
+  box-sizing: border-box;
+  padding: var(--page-padding) var(--gutter);
+}
+
+.designer.expanded {
+  --page-padding: 1rem;
+  --gutter: var(--page-padding);
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: white;
+
+  .hint {
+    display: none;
+  }
+  .editor-workspace {
+    flex: 1 0 12rem;
+    display: grid;
+    min-height: 0;
+  }
+  f-flow {
+    height: 100%;
+  }
+}
+
+@media (min-width: 48rem) {
+  .designer.with-properties {
+    padding-inline-end: max(var(--gutter), calc(var(--drawer-width) + 1rem));
+  }
+}
+
+wf-canvas-controls {
+  position: absolute;
+  inset-inline-start: 0.75rem;
+  inset-block-end: 0.75rem;
+  z-index: 1;
 }

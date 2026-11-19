@@ -1,0 +1,28 @@
+<aside aria-label="Свойства шага">
+  <header>
+    <h2>Свойства шага</h2>
+    <button type="button" class="close" aria-label="Закрыть свойства шага" (click)="dismiss.emit()">
+      ×
+    </button>
+  </header>
+  <p>
+    Тип шага <strong>{{ kindLabel() }}</strong>
+  </p>
+  <form (submit)="$event.preventDefault(); applyTitle(title)">
+    <label>
+      Название
+      <input
+        #title
+        type="text"
+        required
+        pattern=".*\S.*"
+        autocomplete="off"
+        [value]="draftTitle()"
+        (input)="draftTitle.set(title.value)"
+        (change)="applyTitle(title)"
+      />
+    </label>
+    <button type="submit">Применить</button>
+  </form>
+  <button type="button" class="delete" (click)="remove.emit()">Удалить шаг</button>
+</aside>

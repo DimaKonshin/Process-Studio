@@ -1,0 +1,29 @@
+<div role="group" aria-label="Управление холстом">
+  <button
+    type="button"
+    title="Отдалить"
+    aria-label="Отдалить"
+    [disabled]="scale() <= limits.min"
+    (click)="zoomOut.emit()"
+  >
+    −
+  </button>
+  <span aria-label="Текущий масштаб">{{ percent() }}%</span>
+  <button
+    type="button"
+    title="Приблизить"
+    aria-label="Приблизить"
+    [disabled]="scale() >= limits.max"
+    (click)="zoomIn.emit()"
+  >
+    +
+  </button>
+  <button
+    type="button"
+    class="expand"
+    [attr.aria-pressed]="expanded()"
+    (click)="toggleExpanded.emit()"
+  >
+    {{ expanded() ? 'Свернуть' : 'На всё окно' }}
+  </button>
+</div>
