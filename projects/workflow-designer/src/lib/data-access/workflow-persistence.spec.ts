@@ -33,6 +33,32 @@ describe('saving a workflow', () => {
     expect(restored.initialViewport).toEqual(view);
   });
 
+  it('restores ordered route points and fixed port IDs after editing a return connection', () => {
+    const graph = savedGraph();
+    const approval = graph.addStep('approval', 'Решение', position)!;
+    graph.connect(`${approval}:rejected`, 'review-request:in');
+    const [other, edge] = graph.connections();
+    const route = [
+      { x: 650, y: 95 },
+      { x: 610, y: 270 },
+      { x: -80, y: 270 },
+    ];
+    graph.setWaypoints(edge.id, route);
+    graph.save(view);
+    route[1] = { x: 520, y: 310 };
+    expect(graph.connections()[1].waypoints![1]).toEqual({ x: 610, y: 270 });
+    graph.setWaypoints(edge.id, route);
+    expect(graph.status()).toBe('modified');
+    graph.save(view);
+    const restored = new WorkflowCanvasState();
+    expect(restored.connections()).toEqual([other, { ...edge, waypoints: route }]);
+    restored.setWaypoints(edge.id, route);
+    expect(restored.status()).toBe('restored');
+    restored.setWaypoints(edge.id, []);
+    restored.save(view);
+    expect(new WorkflowCanvasState().connections()).toEqual([other, { ...edge, waypoints: [] }]);
+  });
+
   it('restores the window dimensions used to retain zoom when the drawer closes', () => {
     const graph = new WorkflowCanvasState();
     const viewport = { ...view, windowSize: { width: 1280, height: 800 } };
@@ -191,22 +217,26 @@ describe('saving a workflow', () => {
     expect(localStorage.getItem(workflowStorageKey)).toBe(raw);
   });
 
-  it.each(['unknown port', 'duplicate node', 'invalid coordinate', 'duplicate edge'])(
-    'rejects the whole save on %s',
-    (damage) => {
-      savedGraph();
-      const snapshot = JSON.parse(localStorage.getItem(workflowStorageKey)!);
-      if (damage === 'unknown port') snapshot.connections[0].targetId = 'missing';
-      if (damage === 'duplicate node') snapshot.nodes[1].id = snapshot.nodes[0].id;
-      if (damage === 'invalid coordinate') snapshot.nodes[0].position.x = null;
-      if (damage === 'duplicate edge') snapshot.connections.push(snapshot.connections[0]);
-      localStorage.setItem(workflowStorageKey, JSON.stringify(snapshot));
+  it.each([
+    'unknown port',
+    'duplicate node',
+    'invalid coordinate',
+    'duplicate edge',
+    'invalid waypoint',
+  ])('rejects the whole save on %s', (damage) => {
+    savedGraph();
+    const snapshot = JSON.parse(localStorage.getItem(workflowStorageKey)!);
+    if (damage === 'invalid waypoint') snapshot.connections[0].waypoints = [{ x: 0, y: null }];
+    if (damage === 'unknown port') snapshot.connections[0].targetId = 'missing';
+    if (damage === 'duplicate node') snapshot.nodes[1].id = snapshot.nodes[0].id;
+    if (damage === 'invalid coordinate') snapshot.nodes[0].position.x = null;
+    if (damage === 'duplicate edge') snapshot.connections.push(snapshot.connections[0]);
+    localStorage.setItem(workflowStorageKey, JSON.stringify(snapshot));
 
-      const graph = new WorkflowCanvasState();
-      expect(graph.status()).toBe('invalid');
-      expect(graph.connections()).toEqual([]);
-    },
-  );
+    const graph = new WorkflowCanvasState();
+    expect(graph.status()).toBe('invalid');
+    expect(graph.connections()).toEqual([]);
+  });
 
   it('keeps live edits and the previous save after a failed write, and can retry', () => {
     const graph = savedGraph();

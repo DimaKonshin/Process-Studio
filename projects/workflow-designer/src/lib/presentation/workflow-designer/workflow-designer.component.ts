@@ -6,6 +6,7 @@ import {
   ElementRef,
   inject,
   Injector,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -25,11 +26,12 @@ import { type ApprovalOutcome, type WorkflowStepKind } from '../../domain/workfl
 
 import { CanvasControlsComponent, zoomLimits } from '../canvas-controls/canvas-controls.component';
 import { StepPropertiesComponent } from '../step-properties/step-properties.component';
+import { WaypointHandlesPipe } from './waypoint-handles.pipe';
 
 @Component({
   selector: 'wf-workflow-designer',
-  imports: [FFlowModule, StepPropertiesComponent, CanvasControlsComponent],
-  host: { '(document:keydown.escape)': 'expanded.set(false)' },
+  imports: [FFlowModule, StepPropertiesComponent, CanvasControlsComponent, WaypointHandlesPipe],
+  host: { '(document:keydown.escape)': 'onEscape()' },
   providers: [WorkflowCanvasState, provideFFlow(withA11y())],
   templateUrl: './workflow-designer.component.html',
   styleUrl: './workflow-designer.component.scss',
@@ -71,6 +73,25 @@ export class WorkflowDesignerComponent {
     this.graph.nodes().find((node) => node.id === this.selectedNodeId()),
   );
   protected readonly selectedConnectionId = signal<string | null>(null);
+
+  protected readonly placingPoints = linkedSignal({
+    source: this.selectedConnectionId,
+    computation: () => false,
+  });
+
+  protected onEscape(): void {
+    if (this.placingPoints()) this.placingPoints.set(false);
+    else this.expanded.set(false);
+  }
+
+  protected placeWaypoint(event: MouseEvent, flow: FFlowComponent): void {
+    if (!this.placingPoints() || (event.target instanceof Element && event.target.closest('.step')))
+      return;
+    const edge = this.graph.connections().find((item) => item.id === this.selectedConnectionId());
+    if (!edge) return;
+    const point = flow.getPositionInFlow({ x: event.clientX, y: event.clientY });
+    this.graph.setWaypoints(edge.id, [...(edge.waypoints ?? []), point]);
+  }
 
   protected onSelectionChange({ nodeIds, groupIds, connectionIds }: FSelectionChangeEvent): void {
     const singleNode = nodeIds.length === 1 && !groupIds.length && !connectionIds.length;

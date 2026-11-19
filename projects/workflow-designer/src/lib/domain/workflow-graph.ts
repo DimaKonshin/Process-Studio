@@ -30,6 +30,7 @@ export interface WorkflowConnection {
   readonly id: string;
   readonly sourceId: string;
   readonly targetId: string;
+  readonly waypoints?: readonly WorkflowPosition[];
 }
 
 function outputsFor(id: string, kind: WorkflowStepKind): WorkflowOutput[] {

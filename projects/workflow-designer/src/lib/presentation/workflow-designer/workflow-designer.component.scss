@@ -163,6 +163,15 @@ f-flow {
   }
 }
 
+.route-edit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+f-flow.placing-points {
+  cursor: crosshair;
+}
+
 f-connection.f-selected {
   --ff-connection-width: 4px;
 }

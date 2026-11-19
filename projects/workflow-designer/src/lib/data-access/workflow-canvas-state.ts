@@ -93,6 +93,21 @@ export class WorkflowCanvasState {
     this.saveStatus.set('modified');
   }
 
+  setWaypoints(id: string, points: readonly WorkflowPosition[]): void {
+    const edges = this.connections();
+    const edge = edges.find((item) => item.id === id);
+    if (!edge) return;
+    const previous = edge.waypoints ?? [];
+    if (
+      points.length === previous.length &&
+      points.every((p, i) => p.x === previous[i].x && p.y === previous[i].y)
+    )
+      return;
+    const waypoints = points.map(({ x, y }) => ({ x, y }));
+    this.connectionList.set(edges.map((item) => (item === edge ? { ...edge, waypoints } : item)));
+    this.saveStatus.set('modified');
+  }
+
   removeConnection(id: string): void {
     const edges = this.connections();
     const remaining = edges.filter((edge) => edge.id !== id);

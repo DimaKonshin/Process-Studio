@@ -59,7 +59,9 @@ function isConnection(value: unknown): value is WorkflowConnection {
     typeof value['id'] === 'string' &&
     value['id'].length > 0 &&
     typeof value['sourceId'] === 'string' &&
-    typeof value['targetId'] === 'string'
+    typeof value['targetId'] === 'string' &&
+    (value['waypoints'] === undefined ||
+      (Array.isArray(value['waypoints']) && value['waypoints'].every(isPoint)))
   );
 }
 
@@ -109,7 +111,12 @@ function decode(value: unknown, steps: readonly WorkflowNode[]): RestoredWorkflo
     ) {
       return;
     }
-    edges.push({ id: item.id, sourceId: item.sourceId, targetId: item.targetId });
+    edges.push({
+      id: item.id,
+      sourceId: item.sourceId,
+      targetId: item.targetId,
+      ...(item.waypoints && { waypoints: item.waypoints }),
+    });
   }
   return { nodes: restoredNodes, connections: edges, viewport };
 }

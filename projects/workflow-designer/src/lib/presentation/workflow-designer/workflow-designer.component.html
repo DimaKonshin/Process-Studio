@@ -6,9 +6,15 @@
 >
   <ng-content />
   <p class="hint">
-    Нажмите на шаг, чтобы открыть его свойства. Потяните от выхода одного шага ко входу другого,
-    чтобы провести стрелку. Чтобы удалить стрелку, нажмите на линию и выберите «Удалить связь» или
-    нажмите Delete.
+    @if (placingPoints()) {
+      Щёлкайте по холсту от начала стрелки к концу. Когда маршрут готов, нажмите «Готово» или Esc.
+    } @else if (selectedConnectionId()) {
+      Потяните зелёный кружок, чтобы добавить изгиб, или выберите «Расставить точки». Синюю точку
+      можно передвинуть или убрать правой кнопкой мыши.
+    } @else {
+      Нажмите на шаг, чтобы открыть его свойства. Потяните от выхода ко входу, чтобы провести
+      стрелку. Нажмите на линию, чтобы изменить маршрут или удалить связь клавишей Delete.
+    }
   </p>
   <div class="editor-toolbar">
     <form
@@ -31,6 +37,15 @@
     </form>
     <button
       type="button"
+      class="route-edit"
+      [disabled]="selectedConnectionId() === null"
+      [attr.aria-pressed]="placingPoints()"
+      (click)="placingPoints.set(!placingPoints())"
+    >
+      {{ placingPoints() ? 'Готово' : 'Расставить точки' }}
+    </button>
+    <button
+      type="button"
       class="remove-connection"
       [disabled]="selectedConnectionId() === null"
       (click)="removeSelectedConnection(surface)"
@@ -45,10 +60,14 @@
       #surface
       aria-label="Схема процесса"
       fDraggable
+      [fDraggableDisabled]="placingPoints()"
+      [class.placing-points]="placingPoints()"
+      (click)="placeWaypoint($event, surface)"
       (fSelectionChange)="onSelectionChange($event)"
       (fDeleteSelected)="removeSelectedConnection(surface)"
       (fFullRendered)="openCanvas(canvas)"
       (fMoveNodes)="graph.moveNodes($event.nodes)"
+      (fConnectionWaypointsChanged)="graph.setWaypoints($event.connectionId, $event.waypoints)"
       (fCreateConnection)="graph.connect($event.sourceId, $event.targetId)"
     >
       <f-canvas
@@ -60,16 +79,22 @@
         [position]="graph.initialViewport?.position"
         [scale]="graph.initialViewport?.scale ?? 1"
       >
-        <f-connection-for-create fType="bezier" />
+        <f-connection-for-create fType="segment" [fRadius]="0" />
         @for (edge of graph.connections(); track edge.id) {
           <f-connection
             [fConnectionId]="edge.id"
             [fSourceId]="edge.sourceId"
             [fTargetId]="edge.targetId"
-            fType="bezier"
+            fType="segment"
+            [fRadius]="0"
             [fReassignDisabled]="true"
           >
             <f-connection-marker-arrow />
+            <f-connection-waypoints
+              [waypoints]="edge.waypoints | waypointHandles"
+              [visibility]="selectedConnectionId() === edge.id"
+              [radius]="6"
+            />
           </f-connection>
         }
         @for (node of graph.nodes(); track node.id) {
